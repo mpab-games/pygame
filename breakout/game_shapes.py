@@ -1,9 +1,8 @@
 import pygame
-import os
 from game_globals import *
 
 def png_ball(pos):
-    image = pygame.image.load(os.path.join('resources', 'ball.png'))
+    image = pygame.image.load("./assets/ball.png")
     rect = image.get_rect()
     rect.center = pos
     return rect, image
@@ -44,7 +43,7 @@ def brick_shape(pos, fill_color):
     dark_color = (0, 0, 0)
     bright_color = (255, 255, 255)
 
-    width = SCREEN_WIDTH / 20
+    width = SCREEN_WIDTH / BRICKS_PER_LINE
     height = SCREEN_HEIGHT / 20
     image = pygame.Surface([width, height])
     image.fill(SCREEN_COLOR)

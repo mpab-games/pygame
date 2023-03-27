@@ -46,19 +46,19 @@ class SoundsContext:
 def sounds_init():
     pygame.mixer.init()
     context = SoundsContext(
-        brick=pygame.mixer.Sound("./resources/Pop-sound-effect.mp3"),
+        brick=pygame.mixer.Sound("./assets/Pop-sound-effect.mp3"),
         wall=pygame.mixer.Sound(
-            "./resources/baseball-bat-hit-sound-effect.mp3"),
+            "./assets/baseball-bat-hit-sound-effect.mp3"),
         lose_a_life=pygame.mixer.Sound(
-            "./resources/Game-show-buzzer-sound-effect.mp3"),
+            "./assets/Game-show-buzzer-sound-effect.mp3"),
         game_over=pygame.mixer.Sound(
-            "./resources/game-fail-sound-effect.mp3"),
+            "./assets/game-fail-sound-effect.mp3"),
         bat=pygame.mixer.Sound(
-            "./resources/bonk-sound-effect.mp3"),
+            "./assets/bonk-sound-effect.mp3"),
         start_playing=pygame.mixer.Sound(
-            "./resources/Ding-sound-effect.mp3"),
+            "./assets/Ding-sound-effect.mp3"),
         level_complete=pygame.mixer.Sound(
-            "./resources/cartoon-xylophone-gliss.mp3")
+            "./assets/cartoon-xylophone-gliss.mp3")
     )
     return context
 
@@ -85,11 +85,12 @@ class GameContext:
 
 
 def add_brick_sprites(group):
-    group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
-    return
+    # for testing
+    # group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
+    # return
     for row in range(3):
-        for col in range(20):
-            x = (SCREEN_WIDTH / 20) * col
+        for col in range(BRICKS_PER_LINE):
+            x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
             y = ((SCREEN_HEIGHT / 20) * row) + SCREEN_HEIGHT / 5
             group.add(Sprite(brick_shape((x, y), (128, 128, 255))))
 
@@ -197,7 +198,7 @@ def run_game(ctx: GameContext):
         if pygame.sprite.collide_mask(ctx.ball_sprite, brick):
             ctx.bricks.remove(brick)
             num_bricks = len(ctx.bricks.sprites())
-            print(num_bricks)
+            # print(num_bricks)
             ctx.ball_sprite.velocity[1] *= -1
             ctx.score = ctx.score + 10
             ctx.sounds.brick.play()
@@ -278,6 +279,7 @@ def run_gameover(ctx: GameContext):
 
     return True
 
+
 def run_level_complete(ctx: GameContext):
 
     for event in pygame.event.get():
@@ -293,7 +295,9 @@ def run_level_complete(ctx: GameContext):
     now_ticks = pygame.time.get_ticks()
     if (now_ticks - last_ticks > 2000):
         ctx.ticks = now_ticks
-
+        ctx.level = ctx.level + 1
+        reset_ball(ctx)
+        add_brick_sprites(ctx.bricks)
         ctx.state = GameState.RUNNING
 
     return True
@@ -309,7 +313,7 @@ def run_game_state(ctx: GameContext):
 
         case GameState.GAME_OVER:
             return run_gameover(ctx)
-        
+
         case GameState.LEVEL_COMPLETE:
             return run_level_complete(ctx)
 

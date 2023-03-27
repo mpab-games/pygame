@@ -2,14 +2,30 @@
 
 ## Basic Functionality
 
-- High Score
-- End of level/next level handling
-- Sound cues for all events
+### ToDo
+
+- high score
+- change the ball angle depending on where the bat is hit
+- better rebound handling when hitting bricks
+- fix bug where multipl bricks are destroyed (could be related to brick rebound handling)
+- brick positioning per level (creeps down the screen)
+- 
+
+### Done
+
+- basic game
+- lives
+- scoring
+- destroy bricks
+- end of level/next level handling
+- sound cues
 
 ## Quality Improvements
 
-- Better sound cues
-- Improved graphics
+- better sound cues
+- improved graphics
+- use a nicer palette
+- add animations (e.g. when a brick is destroyed)
 
 ## Find better sound effects
 
