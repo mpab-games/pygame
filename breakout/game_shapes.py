@@ -27,7 +27,8 @@ def bat_shape(pos):
     image.fill(SCREEN_COLOR)
     rect = image.get_rect()
     rect.center = pos
-    pygame.draw.rect(image, BAT_COLOR, (0, 0, width, height))
+    pygame.draw.rect(image, (0, 0, 0), (0, 0, width, height), 0, 7)
+    pygame.draw.rect(image, BAT_COLOR, (1, 1, width-2, height-2), 0, 7)
     return rect, image
 
 

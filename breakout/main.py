@@ -11,7 +11,8 @@ from game_types import *
 class GameState(Enum):
     ATTRACT = 1
     RUNNING = 2
-    GAME_OVER = 3
+    LEVEL_COMPLETE = 3
+    GAME_OVER = 4
 
 
 class BallSprite(Sprite):
@@ -38,6 +39,8 @@ class SoundsContext:
     lose_a_life: pygame.mixer.Sound
     game_over: pygame.mixer.Sound
     wall: pygame.mixer.Sound
+    start_playing: pygame.mixer.Sound
+    level_complete: pygame.mixer.Sound
 
 
 def sounds_init():
@@ -51,7 +54,11 @@ def sounds_init():
         game_over=pygame.mixer.Sound(
             "./resources/game-fail-sound-effect.mp3"),
         bat=pygame.mixer.Sound(
-            "./resources/bonk-sound-effect.mp3")
+            "./resources/bonk-sound-effect.mp3"),
+        start_playing=pygame.mixer.Sound(
+            "./resources/Ding-sound-effect.mp3"),
+        level_complete=pygame.mixer.Sound(
+            "./resources/cartoon-xylophone-gliss.mp3")
     )
     return context
 
@@ -78,6 +85,8 @@ class GameContext:
 
 
 def add_brick_sprites(group):
+    group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
+    return
     for row in range(3):
         for col in range(20):
             x = (SCREEN_WIDTH / 20) * col
@@ -88,6 +97,8 @@ def add_brick_sprites(group):
 def game_init():
     pygame.init()
     pygame.font.init()
+    pygame.mouse.set_cursor(
+        (8, 8), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
     return pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 
@@ -95,6 +106,8 @@ def reset_ball(ctx: GameContext):
     ctx.ball_speed = ctx.level + 1
     ctx.ball_sprite.velocity = [ctx.ball_speed, ctx.ball_speed]
     ctx.ball_sprite.move_abs(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+    ctx.sounds.start_playing.play()
+
 
 def new_game(ctx: GameContext):
     ctx.lives = 3
@@ -138,9 +151,10 @@ def make_context():
         font_large,
         0, 0, 0,  # score, lives, ball_speed
         sounds,
-        pygame.time.get_ticks()) # ticks
+        pygame.time.get_ticks())  # ticks
 
     return context
+
 
 def render_screen(ctx: GameContext):
     ctx.screen.fill(SCREEN_COLOR)
@@ -150,6 +164,7 @@ def render_screen(ctx: GameContext):
     text = "Level: %s Lives: %s Score: %s" % (ctx.level, ctx.lives, ctx.score)
     text_img = ctx.font_small.render(text, False, (255, 255, 255))
     ctx.screen.blit(text_img, (0, 0))
+
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
@@ -175,15 +190,20 @@ def run_game(ctx: GameContext):
             pygame.time.delay(2000)
             ctx.state = GameState.GAME_OVER
             return True
-        
+
         reset_ball(ctx)
 
     for brick in ctx.bricks:
         if pygame.sprite.collide_mask(ctx.ball_sprite, brick):
             ctx.bricks.remove(brick)
+            num_bricks = len(ctx.bricks.sprites())
+            print(num_bricks)
             ctx.ball_sprite.velocity[1] *= -1
             ctx.score = ctx.score + 10
             ctx.sounds.brick.play()
+            if (num_bricks == 0):
+                ctx.state = GameState.LEVEL_COMPLETE
+                return True
 
     ctx.playfield.update()
     render_screen(ctx)
@@ -191,15 +211,16 @@ def run_game(ctx: GameContext):
     # ball speed gets faster over time
     last_ticks = ctx.ticks
     now_ticks = pygame.time.get_ticks()
-    if (now_ticks - last_ticks > 20000): # check every 20 seconds
+    if (now_ticks - last_ticks > 20000):  # check every 20 seconds
         ctx.ticks = now_ticks
         ctx.ball_speed = ctx.ball_speed + 1
-        if (ctx.ball_speed <= 20): # maximum speed clamp
+        if (ctx.ball_speed <= 20):  # maximum speed clamp
             vx = math.copysign(ctx.ball_speed, ctx.ball_sprite.velocity[0])
             vy = math.copysign(ctx.ball_speed, ctx.ball_sprite.velocity[1])
             ctx.ball_sprite.velocity = [vx, vy]
 
     return True
+
 
 def draw_banner_text(ctx: GameContext, text):
     letters = ctx.font_large.render(text, False, (255, 255, 255))
@@ -211,6 +232,7 @@ def draw_banner_text(ctx: GameContext, text):
     ctx.screen.blit(shadow, (x+1, y-1))
     ctx.screen.blit(shadow, (x+1, y+1))
     ctx.screen.blit(letters, (x, y))
+
 
 def run_attract(ctx: GameContext):
 
@@ -256,6 +278,26 @@ def run_gameover(ctx: GameContext):
 
     return True
 
+def run_level_complete(ctx: GameContext):
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            ctx.lives = 0
+            return False
+
+    render_screen(ctx)
+    draw_banner_text(ctx, "LEVEL COMPLETE")
+    ctx.sounds.level_complete.play()
+
+    last_ticks = ctx.ticks
+    now_ticks = pygame.time.get_ticks()
+    if (now_ticks - last_ticks > 2000):
+        ctx.ticks = now_ticks
+
+        ctx.state = GameState.RUNNING
+
+    return True
+
 
 def run_game_state(ctx: GameContext):
     match (ctx.state):
@@ -267,6 +309,9 @@ def run_game_state(ctx: GameContext):
 
         case GameState.GAME_OVER:
             return run_gameover(ctx)
+        
+        case GameState.LEVEL_COMPLETE:
+            return run_level_complete(ctx)
 
 
 def main():
