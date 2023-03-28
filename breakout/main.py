@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 import math
 import pygame
 from dataclasses import dataclass
@@ -9,10 +9,12 @@ from game_types import *
 
 
 class GameState(Enum):
-    ATTRACT = 1
-    RUNNING = 2
-    LEVEL_COMPLETE = 3
-    GAME_OVER = 4
+    ATTRACT1 = auto()
+    ATTRACT2 = auto()
+    RUNNING = auto()
+    LOSE_A_LIFE = auto()
+    LEVEL_COMPLETE = auto()
+    GAME_OVER = auto()
 
 
 class BallSprite(Sprite):
@@ -66,7 +68,7 @@ def sounds_init():
 @dataclass
 class GameContext:
     """game context."""
-    state: GameState
+    game_state: GameState
     level: int
     screen: pygame.Surface
     bat_sprite: Sprite
@@ -86,8 +88,8 @@ class GameContext:
 
 def add_brick_sprites(group):
     # for testing
-    # group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
-    # return
+    group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
+    return
     for row in range(3):
         for col in range(BRICKS_PER_LINE):
             x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
@@ -115,7 +117,7 @@ def new_game(ctx: GameContext):
     ctx.level = 1
     reset_ball(ctx)
     add_brick_sprites(ctx.bricks)
-    ctx.state = GameState.RUNNING
+    set_game_state(ctx, GameState.RUNNING)
 
 
 def make_context():
@@ -139,7 +141,7 @@ def make_context():
     clock = pygame.time.Clock()
 
     context = GameContext(
-        GameState.ATTRACT,
+        GameState.ATTRACT1,
         0,
         screen,
         bat_sprite,
@@ -167,10 +169,18 @@ def render_screen(ctx: GameContext):
     ctx.screen.blit(text_img, (0, 0))
 
 
+def run_lose_a_life(ctx: GameContext):
+    pygame.event.pump()
+
+    render_screen(ctx)
+    draw_banner_text(ctx, "GET READY")
+
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        set_game_state(ctx, GameState.RUNNING)
+
+
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            return False
         if event.type == pygame.MOUSEMOTION:
             position = event.pos
             ctx.bat_sprite.rect.left = position[0] - \
@@ -183,16 +193,17 @@ def run_game(ctx: GameContext):
 
     if pygame.sprite.collide_mask(ctx.bottom_border_sprite, ctx.ball_sprite):
         ctx.lives = ctx.lives - 1
-        ctx.sounds.lose_a_life.play()
-        pygame.time.delay(1000)
 
         if (ctx.lives <= 0):
             ctx.sounds.game_over.play()
-            pygame.time.delay(2000)
-            ctx.state = GameState.GAME_OVER
-            return True
+            ctx.level = 0
+            set_game_state(ctx, GameState.GAME_OVER)
+            return
 
+        ctx.sounds.lose_a_life.play()
         reset_ball(ctx)
+        set_game_state(ctx, GameState.LOSE_A_LIFE)
+        return
 
     for brick in ctx.bricks:
         if pygame.sprite.collide_mask(ctx.ball_sprite, brick):
@@ -203,8 +214,9 @@ def run_game(ctx: GameContext):
             ctx.score = ctx.score + 10
             ctx.sounds.brick.play()
             if (num_bricks == 0):
-                ctx.state = GameState.LEVEL_COMPLETE
-                return True
+                ctx.sounds.level_complete.play()
+                set_game_state(ctx, GameState.LEVEL_COMPLETE)
+                return
 
     ctx.playfield.update()
     render_screen(ctx)
@@ -235,87 +247,89 @@ def draw_banner_text(ctx: GameContext, text):
     ctx.screen.blit(letters, (x, y))
 
 
-def run_attract(ctx: GameContext):
+def set_game_state(ctx: GameContext, game_state: GameState):
+    ctx.ticks = pygame.time.get_ticks()
+    ctx.game_state = game_state
 
+
+def run_attract1(ctx: GameContext):
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            ctx.lives = 0
-            return False
         if event.type == pygame.MOUSEBUTTONUP:
+            set_game_state(ctx, GameState.RUNNING)  # TODO add state NEW_GAME
             new_game(ctx)
-            return True
+            return
 
     ctx.playfield.update()
     render_screen(ctx)
     draw_banner_text(ctx, "PRESS MOUSE")
 
-    last_ticks = ctx.ticks
-    now_ticks = pygame.time.get_ticks()
-    if (now_ticks - last_ticks > 2000):
-        ctx.ticks = now_ticks
-        ctx.state = GameState.GAME_OVER
-
-    return True
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        set_game_state(ctx, GameState.ATTRACT2)
 
 
-def run_gameover(ctx: GameContext):
+def run_attract2(ctx: GameContext):
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            ctx.lives = 0
-            return False
         if event.type == pygame.MOUSEBUTTONUP:
+            set_game_state(ctx, GameState.RUNNING)  # TODO add state NEW_GAME
             new_game(ctx)
-            return True
+            return
 
     ctx.playfield.update()
     render_screen(ctx)
+    draw_banner_text(ctx, "TO START")
+
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        set_game_state(ctx, GameState.ATTRACT1)
+
+
+def run_gameover(ctx: GameContext):
+    pygame.event.pump()
+
+    render_screen(ctx)
     draw_banner_text(ctx, "GAME OVER")
 
-    last_ticks = ctx.ticks
-    now_ticks = pygame.time.get_ticks()
-    if (now_ticks - last_ticks > 2000):
-        ctx.ticks = now_ticks
-        ctx.state = GameState.ATTRACT
-
-    return True
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        set_game_state(ctx, GameState.ATTRACT1)
 
 
 def run_level_complete(ctx: GameContext):
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            ctx.lives = 0
-            return False
+    pygame.event.pump()
 
     render_screen(ctx)
     draw_banner_text(ctx, "LEVEL COMPLETE")
-    ctx.sounds.level_complete.play()
 
-    last_ticks = ctx.ticks
-    now_ticks = pygame.time.get_ticks()
-    if (now_ticks - last_ticks > 2000):
-        ctx.ticks = now_ticks
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
         ctx.level = ctx.level + 1
         reset_ball(ctx)
         add_brick_sprites(ctx.bricks)
-        ctx.state = GameState.RUNNING
-
-    return True
+        # TODO add new game state NEXT_LEVEL
+        set_game_state(ctx, GameState.RUNNING)
 
 
 def run_game_state(ctx: GameContext):
-    match (ctx.state):
-        case GameState.ATTRACT:
-            return run_attract(ctx)
+    if pygame.event.peek(eventtype=pygame.QUIT):
+        return False
+
+    match (ctx.game_state):
+        case GameState.ATTRACT1:
+            run_attract1(ctx)
+
+        case GameState.ATTRACT2:
+            run_attract2(ctx)
 
         case GameState.RUNNING:
-            return run_game(ctx)
+            run_game(ctx)
+
+        case GameState.LOSE_A_LIFE:
+            run_lose_a_life(ctx)
 
         case GameState.GAME_OVER:
-            return run_gameover(ctx)
+            run_gameover(ctx)
 
         case GameState.LEVEL_COMPLETE:
-            return run_level_complete(ctx)
+            run_level_complete(ctx)
+
+    return True
 
 
 def main():
@@ -323,6 +337,7 @@ def main():
     reset_ball(ctx)
 
     while (run_game_state(ctx)):
+        run_game_state(ctx)
         pygame.display.flip()
         ctx.clock.tick(60)
 

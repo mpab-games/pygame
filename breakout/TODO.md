@@ -9,7 +9,6 @@
 - better rebound handling when hitting bricks
 - fix bug where multipl bricks are destroyed (could be related to brick rebound handling)
 - brick positioning per level (creeps down the screen)
-- 
 
 ### Done
 
@@ -19,6 +18,7 @@
 - destroy bricks
 - end of level/next level handling
 - sound cues
+- improved game state handling, delays are no longer required
 
 ## Quality Improvements
 
