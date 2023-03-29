@@ -4,7 +4,7 @@
 
 ### ToDo
 
-- high score
+- high score (in progress)
 - change the ball angle depending on where the bat is hit
 - better rebound handling when hitting bricks
 - fix bug where multipl bricks are destroyed (could be related to brick rebound handling)

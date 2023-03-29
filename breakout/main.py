@@ -4,34 +4,18 @@ import pygame
 from dataclasses import dataclass
 
 from game_globals import *
-from game_shapes import *
-from game_types import *
+from game_sprites import *
 
 
 class GameState(Enum):
     ATTRACT1 = auto()
     ATTRACT2 = auto()
+    SHOW_HIGH_SCORES = auto()
     RUNNING = auto()
     LIFE_LOST = auto()
     GET_READY = auto()
     LEVEL_COMPLETE = auto()
     GAME_OVER = auto()
-
-
-class BallSprite(Sprite):
-    def __init__(self, image_rect_tuple, sound, velocity=[0, 0]):
-        super().__init__(image_rect_tuple)
-        self.sound = sound
-        self.velocity = velocity
-
-    def update(self):
-        if self.rect.left < 0 or self.rect.right >= SCREEN_WIDTH:
-            self.velocity[0] *= -1
-            self.sound.play()
-        if self.rect.top < 0 or self.rect.bottom >= SCREEN_HEIGHT:
-            self.velocity[1] *= -1
-            self.sound.play()
-        self.rect.move_ip(self.velocity)
 
 
 @dataclass
@@ -77,8 +61,10 @@ class GameContext:
     bottom_border_sprite: Sprite
     bricks: pygame.sprite.Group
     playfield: pygame.sprite.Group
+    overlay: pygame.sprite.Group
     clock: pygame.time.Clock
     font_small: pygame.font.Font
+    font_medium: pygame.font.Font
     font_large: pygame.font.Font
     score: int
     lives: int
@@ -87,15 +73,15 @@ class GameContext:
     ticks: int
 
 
-def add_brick_sprites(group):
+def add_bricks(group: pygame.sprite.Group):
     # for testing
-    # group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
+    # group.add(BrickSprite(220, 100))
     # return
     for row in range(3):
         for col in range(BRICKS_PER_LINE):
             x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
             y = ((SCREEN_HEIGHT / 20) * row) + SCREEN_HEIGHT / 5
-            group.add(Sprite(brick_shape((x, y), (128, 128, 255))))
+            group.add(BrickSprite(x, y))
 
 
 def game_init():
@@ -104,6 +90,18 @@ def game_init():
     pygame.mouse.set_cursor(
         (8, 8), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
     return pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+
+def make_high_scores(ctx: GameContext):
+    yoff = ctx.font_medium.get_height() * 2
+    ctx.overlay.add(CentredTextScrollingSprite(
+        "HIGH SCORES", ctx.font_medium, SCREEN_HEIGHT, (0, -1)))
+    ctx.overlay.add(CentredTextScrollingSprite(
+        "AAA 10000", ctx.font_medium, SCREEN_HEIGHT + yoff, (0, -1)))
+    ctx.overlay.add(CentredTextScrollingSprite(
+        "BBB 5000", ctx.font_medium, SCREEN_HEIGHT + yoff * 2, (0, -1)))
+    ctx.overlay.add(CentredTextScrollingSprite(
+        "CCC 1000", ctx.font_medium, SCREEN_HEIGHT + yoff * 3, (0, -1)))
 
 
 def reset_ball(ctx: GameContext):
@@ -116,7 +114,7 @@ def new_game(ctx: GameContext):
     ctx.lives = 3
     ctx.level = 1
     reset_ball(ctx)
-    add_brick_sprites(ctx.bricks)
+    add_bricks(ctx.bricks)
 
 
 def make_context():
@@ -124,6 +122,7 @@ def make_context():
     sounds = sounds_init()
     playfield = pygame.sprite.RenderPlain()
     bricks = pygame.sprite.RenderPlain()
+    overlay = pygame.sprite.RenderPlain()
 
     ball_sprite = BallSprite(ball_shape((0, 0)), sounds.wall)
     playfield.add(ball_sprite)
@@ -131,12 +130,14 @@ def make_context():
     bottom_border_sprite = Sprite(border_shape())
     playfield.add(bottom_border_sprite)
 
-    bat_sprite = Sprite(
-        bat_shape((screen.get_rect().w / 2, screen.get_rect().h - 32)))
+    bat_sprite = BatSprite(screen.get_rect().w / 2, screen.get_rect().h - 32)
     playfield.add(bat_sprite)
 
-    font_small = pygame.font.SysFont('NovaMono', 32)
-    font_large = pygame.font.SysFont('NovaMono', 96)
+    font_name = './assets/dogicapixel.ttf'  # NovaMono
+
+    font_small = pygame.font.Font(font_name, 16)
+    font_medium = pygame.font.Font(font_name, 24)
+    font_large = pygame.font.Font(font_name, 48)
     clock = pygame.time.Clock()
 
     context = GameContext(
@@ -148,8 +149,10 @@ def make_context():
         bottom_border_sprite,
         bricks,
         playfield,
+        overlay,
         clock,
         font_small,
+        font_medium,
         font_large,
         0, 0, 0,  # score, lives, ball_speed
         sounds,
@@ -168,8 +171,16 @@ def render_screen(ctx: GameContext):
     ctx.screen.blit(text_img, (0, 0))
 
 
+def handle_player_movement(ctx: GameContext, event: pygame.event.EventType):
+    if event.type == pygame.MOUSEMOTION:
+        position = event.pos
+        ctx.bat_sprite.rect.left = position[0] - \
+            ctx.bat_sprite.rect.width / 2
+
+
 def run_get_ready(ctx: GameContext):
-    pygame.event.pump()
+    for event in pygame.event.get():
+        handle_player_movement(ctx, event)
 
     render_screen(ctx)
     draw_banner_text(ctx, "GET READY")
@@ -191,10 +202,7 @@ def run_life_lost(ctx: GameContext):
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEMOTION:
-            position = event.pos
-            ctx.bat_sprite.rect.left = position[0] - \
-                ctx.bat_sprite.rect.width / 2
+        handle_player_movement(ctx, event)
 
     if pygame.sprite.collide_mask(ctx.bat_sprite, ctx.ball_sprite):
         if (ctx.ball_sprite.velocity[1] > 0):
@@ -248,13 +256,8 @@ def run_game(ctx: GameContext):
 
 def draw_banner_text(ctx: GameContext, text):
     letters = ctx.font_large.render(text, False, (255, 255, 255))
-    shadow = ctx.font_large.render(text, False, (128, 128, 128))
     x = (SCREEN_WIDTH - letters.get_rect().width)//2
     y = (SCREEN_HEIGHT - letters.get_rect().height)//2
-    ctx.screen.blit(shadow, (x-1, y-1))
-    ctx.screen.blit(shadow, (x-1, y+1))
-    ctx.screen.blit(shadow, (x+1, y-1))
-    ctx.screen.blit(shadow, (x+1, y+1))
     ctx.screen.blit(letters, (x, y))
 
 
@@ -292,6 +295,24 @@ def run_attract2(ctx: GameContext):
     draw_banner_text(ctx, "TO START")
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
+
+
+def run_show_high_scores(ctx: GameContext):
+    for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONUP:
+            ctx.sounds.get_ready.play()
+            set_game_state(ctx, GameState.GET_READY)  # TODO add state NEW_GAME
+            new_game(ctx)
+            return
+
+    ctx.playfield.update()
+    render_screen(ctx)
+
+    ctx.overlay.draw(ctx.screen)
+    ctx.overlay.update()
+
+    if (pygame.time.get_ticks() - ctx.ticks > 10000):
         set_game_state(ctx, GameState.ATTRACT1)
 
 
@@ -314,7 +335,7 @@ def run_level_complete(ctx: GameContext):
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         ctx.level = ctx.level + 1
         reset_ball(ctx)
-        add_brick_sprites(ctx.bricks)
+        add_bricks(ctx.bricks)
         # TODO add new game state NEXT_LEVEL
         ctx.sounds.get_ready.play()
         set_game_state(ctx, GameState.GET_READY)
@@ -330,6 +351,9 @@ def run_game_state(ctx: GameContext):
 
         case GameState.ATTRACT2:
             run_attract2(ctx)
+
+        case GameState.SHOW_HIGH_SCORES:
+            run_show_high_scores(ctx)
 
         case GameState.RUNNING:
             run_game(ctx)
@@ -352,6 +376,7 @@ def run_game_state(ctx: GameContext):
 def main():
     ctx = make_context()
     reset_ball(ctx)
+    make_high_scores(ctx)
 
     while (run_game_state(ctx)):
         run_game_state(ctx)

@@ -1,14 +1,15 @@
 import pygame
 from game_globals import *
 
-def png_ball(pos):
+
+def png_ball(pos) -> tuple[pygame.Surface, pygame.Rect]:
     image = pygame.image.load("./assets/ball.png")
     rect = image.get_rect()
     rect.center = pos
-    return rect, image
+    return image, rect
 
 
-def ball_shape(pos):
+def ball_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
     radius = 8
     image = pygame.Surface([radius*2, radius*2])
     image.fill(SCREEN_COLOR)
@@ -16,10 +17,10 @@ def ball_shape(pos):
     rect.center = pos
     pygame.draw.circle(image, BALL_COLOR, (radius, radius), radius)
     image.set_colorkey(SCREEN_COLOR)
-    return rect, image
+    return image, rect
 
 
-def bat_shape(pos):
+def bat_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
     width = 80
     height = 16
     image = pygame.Surface([width, height])
@@ -28,18 +29,18 @@ def bat_shape(pos):
     rect.center = pos
     pygame.draw.rect(image, (0, 0, 0), (0, 0, width, height), 0, 7)
     pygame.draw.rect(image, BAT_COLOR, (1, 1, width-2, height-2), 0, 7)
-    return rect, image
+    return image, rect
 
 
-def border_shape():
+def border_shape() -> tuple[pygame.Surface, pygame.Rect]:
     image = pygame.Surface([SCREEN_WIDTH, 1])
     image.fill(BALL_COLOR)
     rect = image.get_rect()
     rect.bottom = SCREEN_HEIGHT
-    return rect, image
+    return image, rect
 
 
-def brick_shape(pos, fill_color):
+def brick_shape(pos, fill_color) -> tuple[pygame.Surface, pygame.Rect]:
     dark_color = (0, 0, 0)
     bright_color = (255, 255, 255)
 
@@ -60,4 +61,4 @@ def brick_shape(pos, fill_color):
 
     pygame.draw.line(image, bright_color, (0, 0), (width - 2, 0), 2)
     pygame.draw.line(image, bright_color, (0, 0), (0, height - 2), 2)
-    return rect, image
+    return image, rect
