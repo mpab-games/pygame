@@ -12,7 +12,8 @@ class GameState(Enum):
     ATTRACT1 = auto()
     ATTRACT2 = auto()
     RUNNING = auto()
-    LOSE_A_LIFE = auto()
+    LIFE_LOST = auto()
+    GET_READY = auto()
     LEVEL_COMPLETE = auto()
     GAME_OVER = auto()
 
@@ -38,10 +39,10 @@ class SoundsContext:
     """sounds context."""
     bat: pygame.mixer.Sound
     brick: pygame.mixer.Sound
-    lose_a_life: pygame.mixer.Sound
+    life_lost: pygame.mixer.Sound
     game_over: pygame.mixer.Sound
     wall: pygame.mixer.Sound
-    start_playing: pygame.mixer.Sound
+    get_ready: pygame.mixer.Sound
     level_complete: pygame.mixer.Sound
 
 
@@ -51,13 +52,13 @@ def sounds_init():
         brick=pygame.mixer.Sound("./assets/Pop-sound-effect.mp3"),
         wall=pygame.mixer.Sound(
             "./assets/baseball-bat-hit-sound-effect.mp3"),
-        lose_a_life=pygame.mixer.Sound(
+        life_lost=pygame.mixer.Sound(
             "./assets/Game-show-buzzer-sound-effect.mp3"),
         game_over=pygame.mixer.Sound(
             "./assets/game-fail-sound-effect.mp3"),
         bat=pygame.mixer.Sound(
             "./assets/bonk-sound-effect.mp3"),
-        start_playing=pygame.mixer.Sound(
+        get_ready=pygame.mixer.Sound(
             "./assets/Ding-sound-effect.mp3"),
         level_complete=pygame.mixer.Sound(
             "./assets/cartoon-xylophone-gliss.mp3")
@@ -88,8 +89,8 @@ class GameContext:
 
 def add_brick_sprites(group):
     # for testing
-    group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
-    return
+    # group.add(Sprite(brick_shape((220, 100), (128, 128, 255))))
+    # return
     for row in range(3):
         for col in range(BRICKS_PER_LINE):
             x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
@@ -109,7 +110,6 @@ def reset_ball(ctx: GameContext):
     ctx.ball_speed = ctx.level + 1
     ctx.ball_sprite.velocity = [ctx.ball_speed, ctx.ball_speed]
     ctx.ball_sprite.move_abs(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-    ctx.sounds.start_playing.play()
 
 
 def new_game(ctx: GameContext):
@@ -117,7 +117,6 @@ def new_game(ctx: GameContext):
     ctx.level = 1
     reset_ball(ctx)
     add_brick_sprites(ctx.bricks)
-    set_game_state(ctx, GameState.RUNNING)
 
 
 def make_context():
@@ -169,7 +168,7 @@ def render_screen(ctx: GameContext):
     ctx.screen.blit(text_img, (0, 0))
 
 
-def run_lose_a_life(ctx: GameContext):
+def run_get_ready(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
@@ -177,6 +176,17 @@ def run_lose_a_life(ctx: GameContext):
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.RUNNING)
+
+
+def run_life_lost(ctx: GameContext):
+    pygame.event.pump()
+
+    render_screen(ctx)
+    draw_banner_text(ctx, "OH NO!")
+
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        ctx.sounds.get_ready.play()
+        set_game_state(ctx, GameState.GET_READY)
 
 
 def run_game(ctx: GameContext):
@@ -197,12 +207,13 @@ def run_game(ctx: GameContext):
         if (ctx.lives <= 0):
             ctx.sounds.game_over.play()
             ctx.level = 0
+            reset_ball(ctx)
             set_game_state(ctx, GameState.GAME_OVER)
             return
 
-        ctx.sounds.lose_a_life.play()
+        ctx.sounds.life_lost.play()
         reset_ball(ctx)
-        set_game_state(ctx, GameState.LOSE_A_LIFE)
+        set_game_state(ctx, GameState.LIFE_LOST)
         return
 
     for brick in ctx.bricks:
@@ -255,7 +266,8 @@ def set_game_state(ctx: GameContext, game_state: GameState):
 def run_attract1(ctx: GameContext):
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONUP:
-            set_game_state(ctx, GameState.RUNNING)  # TODO add state NEW_GAME
+            ctx.sounds.get_ready.play()
+            set_game_state(ctx, GameState.GET_READY)  # TODO add state NEW_GAME
             new_game(ctx)
             return
 
@@ -270,7 +282,8 @@ def run_attract1(ctx: GameContext):
 def run_attract2(ctx: GameContext):
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONUP:
-            set_game_state(ctx, GameState.RUNNING)  # TODO add state NEW_GAME
+            ctx.sounds.get_ready.play()
+            set_game_state(ctx, GameState.GET_READY)  # TODO add state NEW_GAME
             new_game(ctx)
             return
 
@@ -303,7 +316,8 @@ def run_level_complete(ctx: GameContext):
         reset_ball(ctx)
         add_brick_sprites(ctx.bricks)
         # TODO add new game state NEXT_LEVEL
-        set_game_state(ctx, GameState.RUNNING)
+        ctx.sounds.get_ready.play()
+        set_game_state(ctx, GameState.GET_READY)
 
 
 def run_game_state(ctx: GameContext):
@@ -320,8 +334,11 @@ def run_game_state(ctx: GameContext):
         case GameState.RUNNING:
             run_game(ctx)
 
-        case GameState.LOSE_A_LIFE:
-            run_lose_a_life(ctx)
+        case GameState.LIFE_LOST:
+            run_life_lost(ctx)
+
+        case GameState.GET_READY:
+            run_get_ready(ctx)
 
         case GameState.GAME_OVER:
             run_gameover(ctx)
