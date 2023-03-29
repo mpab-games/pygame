@@ -1,5 +1,5 @@
-﻿Copyright (c) 2020, Roberto Mocci (<patreon.com/rmocci | da.iosonor@gmail.com>),
-with Reserved Font Name Dogica Pixel.
+Copyright (c) 2011, Cody "CodeMan38" Boisclair (cody@zone38.net),
+with Reserved Font Name "Press Start".
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

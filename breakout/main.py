@@ -133,11 +133,11 @@ def make_context():
     bat_sprite = BatSprite(screen.get_rect().w / 2, screen.get_rect().h - 32)
     playfield.add(bat_sprite)
 
-    font_name = './assets/dogicapixel.ttf'  # NovaMono
+    font_name = './assets/PressStart2P.ttf'
 
     font_small = pygame.font.Font(font_name, 16)
     font_medium = pygame.font.Font(font_name, 24)
-    font_large = pygame.font.Font(font_name, 48)
+    font_large = pygame.font.Font(font_name, 32)
     clock = pygame.time.Clock()
 
     context = GameContext(
@@ -168,7 +168,7 @@ def render_screen(ctx: GameContext):
 
     text = "Level: %s Lives: %s Score: %s" % (ctx.level, ctx.lives, ctx.score)
     text_img = ctx.font_small.render(text, False, (255, 255, 255))
-    ctx.screen.blit(text_img, (0, 0))
+    ctx.screen.blit(text_img, (4, 4))
 
 
 def handle_player_movement(ctx: GameContext, event: pygame.event.EventType):
