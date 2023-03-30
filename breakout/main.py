@@ -16,6 +16,8 @@ class GameState(Enum):
     GET_READY = auto()
     LEVEL_COMPLETE = auto()
     GAME_OVER = auto()
+    GAME_OVER_HIGH_SCORE = auto()
+    ENTER_SCORE = auto()
 
 
 @dataclass
@@ -28,24 +30,27 @@ class SoundsContext:
     wall: pygame.mixer.Sound
     get_ready: pygame.mixer.Sound
     level_complete: pygame.mixer.Sound
+    key_press: pygame.mixer.Sound
 
 
 def sounds_init():
     pygame.mixer.init()
     context = SoundsContext(
-        brick=pygame.mixer.Sound("./assets/Pop-sound-effect.mp3"),
+        brick=pygame.mixer.Sound('./assets/Pop-sound-effect.mp3'),
         wall=pygame.mixer.Sound(
-            "./assets/baseball-bat-hit-sound-effect.mp3"),
+            './assets/baseball-bat-hit-sound-effect.mp3'),
         life_lost=pygame.mixer.Sound(
-            "./assets/Game-show-buzzer-sound-effect.mp3"),
+            './assets/Game-show-buzzer-sound-effect.mp3'),
         game_over=pygame.mixer.Sound(
-            "./assets/game-fail-sound-effect.mp3"),
+            './assets/game-fail-sound-effect.mp3'),
         bat=pygame.mixer.Sound(
-            "./assets/bonk-sound-effect.mp3"),
+            './assets/bonk-sound-effect.mp3'),
         get_ready=pygame.mixer.Sound(
-            "./assets/Ding-sound-effect.mp3"),
+            './assets/Ding-sound-effect.mp3'),
         level_complete=pygame.mixer.Sound(
-            "./assets/cartoon-xylophone-gliss.mp3")
+            './assets/cartoon-xylophone-gliss.mp3'),
+        key_press=pygame.mixer.Sound(
+            './assets/machine-button-being-pressed-sound-effect.mp3')
     )
     return context
 
@@ -71,53 +76,11 @@ class GameContext:
     ball_speed: int
     sounds: SoundsContext
     ticks: int
+    high_scores: list
+    score_name: str  # TODO replace with k, v dictionary per state
 
 
-def add_bricks(group: pygame.sprite.Group):
-    # for testing
-    # group.add(BrickSprite(220, 100))
-    # return
-    for row in range(3):
-        for col in range(BRICKS_PER_LINE):
-            x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
-            y = ((SCREEN_HEIGHT / 20) * row) + SCREEN_HEIGHT / 5
-            group.add(BrickSprite(x, y))
-
-
-def game_init():
-    pygame.init()
-    pygame.font.init()
-    pygame.mouse.set_cursor(
-        (8, 8), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
-    return pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-
-
-def make_high_scores(ctx: GameContext):
-    yoff = ctx.font_medium.get_height() * 2
-    ctx.overlay.add(CentredTextScrollingSprite(
-        "HIGH SCORES", ctx.font_medium, SCREEN_HEIGHT, (0, -1)))
-    ctx.overlay.add(CentredTextScrollingSprite(
-        "AAA 10000", ctx.font_medium, SCREEN_HEIGHT + yoff, (0, -1)))
-    ctx.overlay.add(CentredTextScrollingSprite(
-        "BBB 5000", ctx.font_medium, SCREEN_HEIGHT + yoff * 2, (0, -1)))
-    ctx.overlay.add(CentredTextScrollingSprite(
-        "CCC 1000", ctx.font_medium, SCREEN_HEIGHT + yoff * 3, (0, -1)))
-
-
-def reset_ball(ctx: GameContext):
-    ctx.ball_speed = ctx.level + 1
-    ctx.ball_sprite.velocity = [ctx.ball_speed, ctx.ball_speed]
-    ctx.ball_sprite.move_abs(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-
-
-def new_game(ctx: GameContext):
-    ctx.lives = 3
-    ctx.level = 1
-    reset_ball(ctx)
-    add_bricks(ctx.bricks)
-
-
-def make_context():
+def make_context(state: GameState):
     screen = game_init()
     sounds = sounds_init()
     playfield = pygame.sprite.RenderPlain()
@@ -140,8 +103,10 @@ def make_context():
     font_large = pygame.font.Font(font_name, 32)
     clock = pygame.time.Clock()
 
+    high_scores = [("AAA", 100), ('BBB', 50), ('CCC', 10)]
+
     context = GameContext(
-        GameState.ATTRACT1,
+        state,
         0,
         screen,
         bat_sprite,
@@ -156,19 +121,78 @@ def make_context():
         font_large,
         0, 0, 0,  # score, lives, ball_speed
         sounds,
-        pygame.time.get_ticks())  # ticks
+        pygame.time.get_ticks(),  # ticks
+        high_scores,
+        '')
 
     return context
+
+
+def add_bricks(group: pygame.sprite.Group):
+    # for testing
+    # group.add(BrickSprite(220, 100))
+    # return
+    for row in range(3):
+        for col in range(BRICKS_PER_LINE):
+            x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
+            y = ((SCREEN_HEIGHT / 20) * row) + SCREEN_HEIGHT / 5
+            group.add(BrickSprite(x, y))
+
+
+def game_init():
+    pygame.init()
+    pygame.font.init()
+    pygame.mouse.set_cursor(
+        (8, 8), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
+    return pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+
+def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str):
+    surface = vertical_text_gradient_surface(
+        text, font, (0, 255, 0, 255), (0, 192, 0, 255))
+    return ScrollingSprite(surface, 0, 0, (0, -1))
+
+
+def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, high_scores: list):
+    yoff = font.get_height() * 1.5
+
+    sprite = make_vertically_scrolling_text_sprite(font, "TODAY'S HIGH SCORES")
+    sprite.move_abs((SCREEN_WIDTH - sprite.rect.width) //
+                    2, SCREEN_HEIGHT + yoff)
+    group.add(sprite)
+
+    sprite = make_vertically_scrolling_text_sprite(font, "NAME SCORE")
+    lcol = (SCREEN_WIDTH - sprite.rect.width) // 2
+    sprite.move_abs(lcol, SCREEN_HEIGHT + yoff * 2)
+    group.add(sprite)
+
+    for idx, (name, score) in enumerate(high_scores):
+        text = "%s  %s" % (name, score)
+        sprite = make_vertically_scrolling_text_sprite(font, text)
+        sprite.move_abs(lcol, SCREEN_HEIGHT + yoff * (idx + 3))
+        group.add(sprite)
+
+
+def reset_ball(ctx: GameContext):
+    ctx.ball_speed = ctx.level + 1
+    ctx.ball_sprite.velocity = [ctx.ball_speed, ctx.ball_speed]
+    ctx.ball_sprite.move_abs(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+
+
+def new_game(ctx: GameContext):
+    ctx.lives = 3
+    ctx.level = 1
+    reset_ball(ctx)
+    add_bricks(ctx.bricks)
 
 
 def render_screen(ctx: GameContext):
     ctx.screen.fill(SCREEN_COLOR)
     ctx.playfield.draw(ctx.screen)
     ctx.bricks.draw(ctx.screen)
-
-    text = "Level: %s Lives: %s Score: %s" % (ctx.level, ctx.lives, ctx.score)
-    text_img = ctx.font_small.render(text, False, (255, 255, 255))
-    ctx.screen.blit(text_img, (4, 4))
+    surface = vertical_text_gradient_surface("Level:%s Lives:%s Score:%s" % (
+        ctx.level, ctx.lives, ctx.score), ctx.font_small, (255, 255, 0, 255), (192, 192, 0, 255))
+    ctx.screen.blit(surface, (4, 4))
 
 
 def handle_player_movement(ctx: GameContext, event: pygame.event.EventType):
@@ -183,7 +207,7 @@ def run_get_ready(ctx: GameContext):
         handle_player_movement(ctx, event)
 
     render_screen(ctx)
-    draw_banner_text(ctx, "GET READY")
+    blit_centred_banner_text(ctx.screen, "GET READY!", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.RUNNING)
@@ -193,12 +217,17 @@ def run_life_lost(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
-    draw_banner_text(ctx, "OH NO!")
+    blit_centred_banner_text(ctx.screen, "OH NO!", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         ctx.sounds.get_ready.play()
         set_game_state(ctx, GameState.GET_READY)
 
+def make_high_scores(ctx: GameContext):
+    new_high_scores = ctx.high_scores.copy()
+    new_high_scores.append((ctx.score_name, ctx.score))
+    new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
+    return new_high_scores[:3]
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
@@ -216,6 +245,12 @@ def run_game(ctx: GameContext):
             ctx.sounds.game_over.play()
             ctx.level = 0
             reset_ball(ctx)
+
+            new_high_scores = make_high_scores(ctx)
+            if (new_high_scores != ctx.high_scores):
+                set_game_state(ctx, GameState.GAME_OVER_HIGH_SCORE)
+                return
+
             set_game_state(ctx, GameState.GAME_OVER)
             return
 
@@ -254,11 +289,13 @@ def run_game(ctx: GameContext):
     return True
 
 
-def draw_banner_text(ctx: GameContext, text):
-    letters = ctx.font_large.render(text, False, (255, 255, 255))
-    x = (SCREEN_WIDTH - letters.get_rect().width)//2
-    y = (SCREEN_HEIGHT - letters.get_rect().height)//2
-    ctx.screen.blit(letters, (x, y))
+def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
+    surface = vertical_text_gradient_surface(
+        text, font, (0, 0, 255, 255), (0, 0, 192, 255))
+    x = (SCREEN_WIDTH - surface.get_rect().width)//2
+    y = (SCREEN_HEIGHT - surface.get_rect().height)//2
+    target.blit(surface, (x, y))
+    return surface
 
 
 def set_game_state(ctx: GameContext, game_state: GameState):
@@ -276,7 +313,7 @@ def run_attract1(ctx: GameContext):
 
     ctx.playfield.update()
     render_screen(ctx)
-    draw_banner_text(ctx, "PRESS MOUSE")
+    blit_centred_banner_text(ctx.screen, "PRESS MOUSE BUTTON", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ATTRACT2)
@@ -292,7 +329,7 @@ def run_attract2(ctx: GameContext):
 
     ctx.playfield.update()
     render_screen(ctx)
-    draw_banner_text(ctx, "TO START")
+    blit_centred_banner_text(ctx.screen, "TO START", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
@@ -320,17 +357,25 @@ def run_gameover(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
-    draw_banner_text(ctx, "GAME OVER")
+    blit_centred_banner_text(ctx.screen, "GAME OVER", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ATTRACT1)
 
+def run_gameover_high_score(ctx: GameContext):
+    pygame.event.pump()
+
+    render_screen(ctx)
+    blit_centred_banner_text(ctx.screen, "GAME OVER", ctx.font_large)
+
+    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+        set_game_state(ctx, GameState.ENTER_SCORE)
 
 def run_level_complete(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
-    draw_banner_text(ctx, "LEVEL COMPLETE")
+    blit_centred_banner_text(ctx.screen, "LEVEL COMPLETE", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         ctx.level = ctx.level + 1
@@ -341,6 +386,42 @@ def run_level_complete(ctx: GameContext):
         set_game_state(ctx, GameState.GET_READY)
 
 
+def run_enter_score(ctx: GameContext):
+    char = ''
+
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                # TODO add state NEW_GAME
+                set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
+                ctx.high_scores = make_high_scores(ctx)
+                ctx.overlay = pygame.sprite.RenderPlain()
+                add_high_score_sprites(ctx.overlay, ctx.font_medium, ctx.high_scores)
+                ctx.score_name = ''
+                return
+
+            char = pygame.key.name(event.key)
+
+            if char == 'backspace' and len(ctx.score_name):
+                    ctx.score_name = ctx.score_name[:-1]
+                    ctx.sounds.key_press.play()
+
+            if len(char) == 1 and len(ctx.score_name) < 3:
+                    ctx.score_name = ctx.score_name + char
+                    ctx.sounds.key_press.play()
+
+
+    ctx.screen.fill(SCREEN_COLOR)
+    banner_text_surface = blit_centred_banner_text(ctx.screen, "ENTER NAME", ctx.font_large)
+
+    display_name = ctx.score_name + '_'
+
+    surface = vertical_text_gradient_surface(
+    display_name, ctx.font_medium, (0, 255, 0, 255), (0, 192, 0, 255))
+    x = (SCREEN_WIDTH - surface.get_rect().width)//2
+    y = banner_text_surface.get_rect().height + (SCREEN_HEIGHT - surface.get_rect().height)//2
+    ctx.screen.blit(surface, (x, y))
+    
 def run_game_state(ctx: GameContext):
     if pygame.event.peek(eventtype=pygame.QUIT):
         return False
@@ -367,19 +448,24 @@ def run_game_state(ctx: GameContext):
         case GameState.GAME_OVER:
             run_gameover(ctx)
 
+        case GameState.GAME_OVER_HIGH_SCORE: # kludge
+            run_gameover_high_score(ctx)
+
         case GameState.LEVEL_COMPLETE:
             run_level_complete(ctx)
+
+        case GameState.ENTER_SCORE:
+            run_enter_score(ctx)
 
     return True
 
 
 def main():
-    ctx = make_context()
+    ctx = make_context(GameState.GAME_OVER)
     reset_ball(ctx)
-    make_high_scores(ctx)
+    add_high_score_sprites(ctx.overlay, ctx.font_medium, ctx.high_scores)
 
     while (run_game_state(ctx)):
-        run_game_state(ctx)
         pygame.display.flip()
         ctx.clock.tick(60)
 

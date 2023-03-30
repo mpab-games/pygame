@@ -62,3 +62,42 @@ def brick_shape(pos, fill_color) -> tuple[pygame.Surface, pygame.Rect]:
     pygame.draw.line(image, bright_color, (0, 0), (width - 2, 0), 2)
     pygame.draw.line(image, bright_color, (0, 0), (0, height - 2), 2)
     return image, rect
+
+
+def vertical_gradient_filled_surface(size, startcolor, endcolor) -> pygame.Surface:
+    """
+    Draws a vertical linear gradient filling the entire surface. Returns a
+    surface filled with the gradient (numeric is only 2-3 times faster).
+    """
+    height = size[1]
+    surface = pygame.Surface((1, height)).convert_alpha()
+    dd = 1.0/height
+    sr, sg, sb, sa = startcolor
+    er, eg, eb, ea = endcolor
+    rm = (er-sr)*dd
+    gm = (eg-sg)*dd
+    bm = (eb-sb)*dd
+    am = (ea-sa)*dd
+    for y in range(height):
+        surface.set_at((0, y),
+                       (int(sr + rm*y),
+                        int(sg + gm*y),
+                        int(sb + bm*y),
+                        int(sa + am*y))
+                       )
+    return pygame.transform.scale(surface, size)
+
+
+def mask_blit_surface(target_surface: pygame.Surface, mask_surface: pygame.Surface):
+    mask_surface.set_colorkey((0, 0, 0))
+    target_surface.blit(mask_surface, (0, 0), None,
+                        pygame.BLEND_RGBA_MULT)
+    target_surface.set_colorkey((0, 0, 0))
+
+
+def vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient_top, gradient_bottom):
+    mask = font.render(text, False, (255, 255, 255))
+    target = vertical_gradient_filled_surface(
+        mask.get_size(), gradient_top, gradient_bottom)
+    mask_blit_surface(target, mask)
+    return target

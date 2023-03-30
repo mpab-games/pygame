@@ -1,7 +1,7 @@
 from ast import Tuple
 from game_types import *
 from game_globals import *
-from game_shapes import *
+from game_surfaces import *
 
 
 class BallSprite(Sprite):
@@ -78,6 +78,25 @@ class CentredTextScrollingSprite(Sprite):
         self.velocity = velocity
 
         super().__init__((text_surface, rect))
+
+    def update(self):
+        self.rect.move_ip(self.velocity)
+        if (self.rect.bottom < 0):
+            self.rect.top = SCREEN_HEIGHT
+
+
+class ScrollingSprite(Sprite):
+    def __init__(self, surface: pygame.Surface, x, y: int, velocity):
+
+        w = surface.get_rect().width
+        h = surface.get_rect().height
+        rect = surface.get_rect()
+        rect.centerx = w // 2
+        rect.centery = y + h // 2
+
+        self.velocity = velocity
+
+        super().__init__((surface, rect))
 
     def update(self):
         self.rect.move_ip(self.velocity)
