@@ -12,11 +12,12 @@ def png_ball(pos) -> tuple[pygame.Surface, pygame.Rect]:
 def ball_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
     radius = 8
     image = pygame.Surface([radius*2, radius*2])
-    image.fill(SCREEN_COLOR)
+    image.fill(SCREEN_FILL_COLOR)
     rect = image.get_rect()
     rect.center = pos
-    pygame.draw.circle(image, BALL_COLOR, (radius, radius), radius)
-    image.set_colorkey(SCREEN_COLOR)
+    pygame.draw.circle(image, BALL_BORDER_COLOR, (radius, radius), radius)
+    pygame.draw.circle(image, BALL_FILL_COLOR, (radius, radius), radius-1)
+    image.set_colorkey(SCREEN_FILL_COLOR)
     return image, rect
 
 
@@ -24,17 +25,17 @@ def bat_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
     width = 80
     height = 16
     image = pygame.Surface([width, height])
-    image.fill(SCREEN_COLOR)
+    image.fill(SCREEN_FILL_COLOR)
     rect = image.get_rect()
     rect.center = pos
-    pygame.draw.rect(image, (0, 0, 0), (0, 0, width, height), 0, 7)
-    pygame.draw.rect(image, BAT_COLOR, (1, 1, width-2, height-2), 0, 7)
+    pygame.draw.rect(image, BAT_BORDER_COLOR, (0, 0, width, height), 0, 7)
+    pygame.draw.rect(image, BAT_FILL_COLOR, (1, 1, width-2, height-2), 0, 7)
     return image, rect
 
 
 def border_shape() -> tuple[pygame.Surface, pygame.Rect]:
     image = pygame.Surface([SCREEN_WIDTH, 1])
-    image.fill(BALL_COLOR)
+    image.fill(SCREEN_BORDER_COLOR)
     rect = image.get_rect()
     rect.bottom = SCREEN_HEIGHT
     return image, rect
@@ -47,7 +48,7 @@ def brick_shape(pos, fill_color) -> tuple[pygame.Surface, pygame.Rect]:
     width = SCREEN_WIDTH / BRICKS_PER_LINE
     height = SCREEN_HEIGHT / 20
     image = pygame.Surface([width, height])
-    image.fill(SCREEN_COLOR)
+    image.fill(SCREEN_FILL_COLOR)
     rect = image.get_rect()
     # rect.center = pos
     rect.centerx = pos[0] + width / 2
@@ -101,3 +102,17 @@ def vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient_t
         mask.get_size(), gradient_top, gradient_bottom)
     mask_blit_surface(target, mask)
     return target
+
+
+def dual_vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient1_top, gradient1_bottom, gradient2_top, gradient2_bottom):
+    mask = font.render(text, False, (255, 255, 255))
+    sz = (mask.get_size()[0], mask.get_size()[1]//2)
+    s1 = vertical_gradient_filled_surface(
+        sz, gradient1_top, gradient1_bottom)
+    s2 = vertical_gradient_filled_surface(
+        sz, gradient2_top, gradient2_bottom)
+    surface = pygame.Surface(mask.get_size())
+    surface.blit(s1, (0, 0), None)
+    surface.blit(s2, (0, sz[1]), None)
+    mask_blit_surface(surface, mask)
+    return surface

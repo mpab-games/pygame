@@ -41,7 +41,7 @@ class CentredScrollingTextSpriteWithShadow(Sprite):
         h = letters.get_rect().height + 2
 
         text_surface = pygame.Surface([w, h])
-        text_surface.fill(SCREEN_COLOR)
+        text_surface.fill(SCREEN_FILL_COLOR)
         text_surface.blit(shadow, (0, 0))
         text_surface.blit(shadow, (2, 0))
         text_surface.blit(shadow, (0, 2))

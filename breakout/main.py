@@ -149,27 +149,26 @@ def game_init():
 
 def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str):
     surface = vertical_text_gradient_surface(
-        text, font, (0, 255, 0, 255), (0, 192, 0, 255))
+        text, font, (0, 255, 0, 255), (0, 128, 0, 255))
     return ScrollingSprite(surface, 0, 0, (0, -1))
 
 
 def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, high_scores: list):
     yoff = font.get_height() * 1.5
 
-    sprite = make_vertically_scrolling_text_sprite(font, "TODAY'S HIGH SCORES")
+    sprite = make_vertically_scrolling_text_sprite(font, "Today's High Scores")
     sprite.move_abs((SCREEN_WIDTH - sprite.rect.width) //
                     2, SCREEN_HEIGHT + yoff)
     group.add(sprite)
 
-    sprite = make_vertically_scrolling_text_sprite(font, "NAME SCORE")
-    lcol = (SCREEN_WIDTH - sprite.rect.width) // 2
-    sprite.move_abs(lcol, SCREEN_HEIGHT + yoff * 2)
-    group.add(sprite)
+    xpos = None
 
     for idx, (name, score) in enumerate(high_scores):
         text = "%s  %s" % (name, score)
         sprite = make_vertically_scrolling_text_sprite(font, text)
-        sprite.move_abs(lcol, SCREEN_HEIGHT + yoff * (idx + 3))
+        if xpos == None:
+            xpos = (SCREEN_WIDTH - sprite.rect.width) // 2
+        sprite.move_abs(xpos, SCREEN_HEIGHT + yoff * (idx + 3))
         group.add(sprite)
 
 
@@ -187,7 +186,7 @@ def new_game(ctx: GameContext):
 
 
 def render_screen(ctx: GameContext):
-    ctx.screen.fill(SCREEN_COLOR)
+    ctx.screen.fill(SCREEN_FILL_COLOR)
     ctx.playfield.draw(ctx.screen)
     ctx.bricks.draw(ctx.screen)
     surface = vertical_text_gradient_surface("Level:%s Lives:%s Score:%s" % (
@@ -293,28 +292,9 @@ def run_game(ctx: GameContext):
     return True
 
 
-def xblit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
-    surface = vertical_text_gradient_surface(
-        text, font, (0, 0, 255, 255), (0, 0, 192, 255))
-    x = (SCREEN_WIDTH - surface.get_rect().width)//2
-    y = (SCREEN_HEIGHT - surface.get_rect().height)//2
-    target.blit(surface, (x, y))
-    return surface
-
-
 def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
-
-    mask = font.render(text, False, (255, 255, 255))
-    sz = (mask.get_size()[0], mask.get_size()[1]//2)
-    s1 = vertical_gradient_filled_surface(
-        sz, (64, 64, 255, 255), (224, 224, 255, 255))
-    s2 = vertical_gradient_filled_surface(
-        sz, (255, 0, 0, 255), (192, 192, 0, 255))
-    surface = pygame.Surface(mask.get_size()).convert_alpha()
-    surface.blit(s1, (0, 0), None)
-    surface.blit(s2, (0, sz[1]), None)
-    mask_blit_surface(surface, mask)
-
+    surface = dual_vertical_text_gradient_surface(
+        text, font, (64, 64, 255, 255), (224, 224, 255, 255), (255, 0, 0, 255), (192, 192, 0, 255))
     x = (SCREEN_WIDTH - surface.get_rect().width)//2
     y = (SCREEN_HEIGHT - surface.get_rect().height)//2
     target.blit(surface, (x, y))
@@ -336,7 +316,7 @@ def run_attract1(ctx: GameContext):
 
     ctx.playfield.update()
     render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "PRESS MOUSE BUTTON", ctx.font_large)
+    blit_centred_banner_text(ctx.screen, "Press Mouse Button", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ATTRACT2)
@@ -352,7 +332,7 @@ def run_attract2(ctx: GameContext):
 
     ctx.playfield.update()
     render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "TO START", ctx.font_large)
+    blit_centred_banner_text(ctx.screen, "To Start", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
@@ -380,7 +360,7 @@ def run_gameover(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "GAME OVER", ctx.font_large)
+    blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ATTRACT1)
@@ -390,7 +370,7 @@ def run_gameover_high_score(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "GAME OVER", ctx.font_large)
+    blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ENTER_SCORE)
@@ -436,9 +416,9 @@ def run_enter_score(ctx: GameContext):
                 ctx.score_name = ctx.score_name + char
                 ctx.sounds.key_press.play()
 
-    ctx.screen.fill(SCREEN_COLOR)
+    ctx.screen.fill(SCREEN_FILL_COLOR)
     banner_text_surface = blit_centred_banner_text(
-        ctx.screen, "ENTER NAME", ctx.font_large)
+        ctx.screen, "New High Score!", ctx.font_large)
 
     display_name = ctx.score_name + '_'
 
