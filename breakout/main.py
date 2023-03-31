@@ -96,7 +96,7 @@ def make_context(state: GameState):
     bat_sprite = BatSprite(screen.get_rect().w / 2, screen.get_rect().h - 32)
     playfield.add(bat_sprite)
 
-    font_name = './assets/PressStart2P.ttf'
+    font_name = './assets/AtariFontFullVersion-ZJ23.ttf'
 
     font_small = pygame.font.Font(font_name, 16)
     font_medium = pygame.font.Font(font_name, 24)
@@ -217,17 +217,21 @@ def run_life_lost(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "OH NO!", ctx.font_large)
+    text = "%s LIVES LEFT" % (
+        ctx.lives) if ctx.lives != 1 else "%s LIFE LEFT" % (ctx.lives)
+    blit_centred_banner_text(ctx.screen, text, ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         ctx.sounds.get_ready.play()
         set_game_state(ctx, GameState.GET_READY)
+
 
 def make_high_scores(ctx: GameContext):
     new_high_scores = ctx.high_scores.copy()
     new_high_scores.append((ctx.score_name, ctx.score))
     new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
     return new_high_scores[:3]
+
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
@@ -289,9 +293,28 @@ def run_game(ctx: GameContext):
     return True
 
 
-def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
+def xblit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
     surface = vertical_text_gradient_surface(
         text, font, (0, 0, 255, 255), (0, 0, 192, 255))
+    x = (SCREEN_WIDTH - surface.get_rect().width)//2
+    y = (SCREEN_HEIGHT - surface.get_rect().height)//2
+    target.blit(surface, (x, y))
+    return surface
+
+
+def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
+
+    mask = font.render(text, False, (255, 255, 255))
+    sz = (mask.get_size()[0], mask.get_size()[1]//2)
+    s1 = vertical_gradient_filled_surface(
+        sz, (64, 64, 255, 255), (224, 224, 255, 255))
+    s2 = vertical_gradient_filled_surface(
+        sz, (255, 0, 0, 255), (192, 192, 0, 255))
+    surface = pygame.Surface(mask.get_size()).convert_alpha()
+    surface.blit(s1, (0, 0), None)
+    surface.blit(s2, (0, sz[1]), None)
+    mask_blit_surface(surface, mask)
+
     x = (SCREEN_WIDTH - surface.get_rect().width)//2
     y = (SCREEN_HEIGHT - surface.get_rect().height)//2
     target.blit(surface, (x, y))
@@ -362,6 +385,7 @@ def run_gameover(ctx: GameContext):
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ATTRACT1)
 
+
 def run_gameover_high_score(ctx: GameContext):
     pygame.event.pump()
 
@@ -370,6 +394,7 @@ def run_gameover_high_score(ctx: GameContext):
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
         set_game_state(ctx, GameState.ENTER_SCORE)
+
 
 def run_level_complete(ctx: GameContext):
     pygame.event.pump()
@@ -396,32 +421,35 @@ def run_enter_score(ctx: GameContext):
                 set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
                 ctx.high_scores = make_high_scores(ctx)
                 ctx.overlay = pygame.sprite.RenderPlain()
-                add_high_score_sprites(ctx.overlay, ctx.font_medium, ctx.high_scores)
+                add_high_score_sprites(
+                    ctx.overlay, ctx.font_medium, ctx.high_scores)
                 ctx.score_name = ''
                 return
 
             char = pygame.key.name(event.key)
 
             if char == 'backspace' and len(ctx.score_name):
-                    ctx.score_name = ctx.score_name[:-1]
-                    ctx.sounds.key_press.play()
+                ctx.score_name = ctx.score_name[:-1]
+                ctx.sounds.key_press.play()
 
             if len(char) == 1 and len(ctx.score_name) < 3:
-                    ctx.score_name = ctx.score_name + char
-                    ctx.sounds.key_press.play()
-
+                ctx.score_name = ctx.score_name + char
+                ctx.sounds.key_press.play()
 
     ctx.screen.fill(SCREEN_COLOR)
-    banner_text_surface = blit_centred_banner_text(ctx.screen, "ENTER NAME", ctx.font_large)
+    banner_text_surface = blit_centred_banner_text(
+        ctx.screen, "ENTER NAME", ctx.font_large)
 
     display_name = ctx.score_name + '_'
 
     surface = vertical_text_gradient_surface(
-    display_name, ctx.font_medium, (0, 255, 0, 255), (0, 192, 0, 255))
+        display_name, ctx.font_medium, (0, 255, 0, 255), (0, 192, 0, 255))
     x = (SCREEN_WIDTH - surface.get_rect().width)//2
-    y = banner_text_surface.get_rect().height + (SCREEN_HEIGHT - surface.get_rect().height)//2
+    y = banner_text_surface.get_rect().height + (SCREEN_HEIGHT -
+                                                 surface.get_rect().height)//2
     ctx.screen.blit(surface, (x, y))
-    
+
+
 def run_game_state(ctx: GameContext):
     if pygame.event.peek(eventtype=pygame.QUIT):
         return False
@@ -448,7 +476,7 @@ def run_game_state(ctx: GameContext):
         case GameState.GAME_OVER:
             run_gameover(ctx)
 
-        case GameState.GAME_OVER_HIGH_SCORE: # kludge
+        case GameState.GAME_OVER_HIGH_SCORE:  # kludge
             run_gameover_high_score(ctx)
 
         case GameState.LEVEL_COMPLETE:
