@@ -149,7 +149,7 @@ def game_init():
 
 def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str):
     surface = vertical_text_gradient_surface(
-        text, font, (0, 255, 0, 255), (0, 128, 0, 255))
+        text, font, BRIGHTGREEN_TO_MIDGREEN_GRADIENT)
     return ScrollingSprite(surface, 0, 0, (0, -1))
 
 
@@ -190,7 +190,7 @@ def render_screen(ctx: GameContext):
     ctx.playfield.draw(ctx.screen)
     ctx.bricks.draw(ctx.screen)
     surface = vertical_text_gradient_surface("Level:%s Lives:%s Score:%s" % (
-        ctx.level, ctx.lives, ctx.score), ctx.font_small, (255, 255, 0, 255), (192, 192, 0, 255))
+        ctx.level, ctx.lives, ctx.score), ctx.font_small, BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT)
     ctx.screen.blit(surface, (4, 4))
 
 
@@ -294,7 +294,7 @@ def run_game(ctx: GameContext):
 
 def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.font.Font):
     surface = dual_vertical_text_gradient_surface(
-        text, font, (64, 64, 255, 255), (224, 224, 255, 255), (255, 0, 0, 255), (192, 192, 0, 255))
+        text, font, MIDBLUE_TO_LIGHTBLUE_GRADIENT, RED_TO_ORANGE_GRADIENT)
     x = (SCREEN_WIDTH - surface.get_rect().width)//2
     y = (SCREEN_HEIGHT - surface.get_rect().height)//2
     target.blit(surface, (x, y))
@@ -423,7 +423,7 @@ def run_enter_score(ctx: GameContext):
     display_name = ctx.score_name + '_'
 
     surface = vertical_text_gradient_surface(
-        display_name, ctx.font_medium, (0, 255, 0, 255), (0, 192, 0, 255))
+        display_name, ctx.font_medium, BRIGHTGREEN_TO_MIDGREEN_GRADIENT)
     x = (SCREEN_WIDTH - surface.get_rect().width)//2
     y = banner_text_surface.get_rect().height + (SCREEN_HEIGHT -
                                                  surface.get_rect().height)//2
