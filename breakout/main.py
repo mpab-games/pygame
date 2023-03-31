@@ -65,6 +65,7 @@ class GameContext:
     ball_sprite: BallSprite
     bottom_border_sprite: Sprite
     bricks: pygame.sprite.Group
+    underlay: pygame.sprite.Group
     playfield: pygame.sprite.Group
     overlay: pygame.sprite.Group
     clock: pygame.time.Clock
@@ -86,6 +87,7 @@ def make_context(state: GameState):
     playfield = pygame.sprite.RenderPlain()
     bricks = pygame.sprite.RenderPlain()
     overlay = pygame.sprite.RenderPlain()
+    underlay = pygame.sprite.RenderPlain()
 
     ball_sprite = BallSprite(ball_shape((0, 0)), sounds.wall)
     playfield.add(ball_sprite)
@@ -113,6 +115,7 @@ def make_context(state: GameState):
         ball_sprite,
         bottom_border_sprite,
         bricks,
+        underlay,
         playfield,
         overlay,
         clock,
@@ -147,16 +150,16 @@ def game_init():
     return pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 
-def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str):
-    surface = vertical_text_gradient_surface(
-        text, font, BRIGHTGREEN_TO_MIDGREEN_GRADIENT)
-    return ScrollingSprite(surface, 0, 0, (0, -1))
+def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str, gradient_top, gradient_bottom):
+    surface = dual_vertical_text_gradient_surface(
+        text, font, gradient_top, gradient_bottom)
+    return ScrollingSprite(surface, (0, -1))
 
 
 def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, high_scores: list):
     yoff = font.get_height() * 1.5
 
-    sprite = make_vertically_scrolling_text_sprite(font, "Today's High Scores")
+    sprite = make_vertically_scrolling_text_sprite(font, "Today's High Scores", MIDBLUE_TO_LIGHTBLUE_GRADIENT, RED_TO_ORANGE_GRADIENT)
     sprite.move_abs((SCREEN_WIDTH - sprite.rect.width) //
                     2, SCREEN_HEIGHT + yoff)
     group.add(sprite)
@@ -165,7 +168,7 @@ def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, h
 
     for idx, (name, score) in enumerate(high_scores):
         text = "%s  %s" % (name, score)
-        sprite = make_vertically_scrolling_text_sprite(font, text)
+        sprite = make_vertically_scrolling_text_sprite(font, text, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
         if xpos == None:
             xpos = (SCREEN_WIDTH - sprite.rect.width) // 2
         sprite.move_abs(xpos, SCREEN_HEIGHT + yoff * (idx + 3))
@@ -189,6 +192,8 @@ def render_screen(ctx: GameContext):
     ctx.screen.fill(SCREEN_FILL_COLOR)
     ctx.playfield.draw(ctx.screen)
     ctx.bricks.draw(ctx.screen)
+    ctx.underlay.draw(ctx.screen)
+
     surface = vertical_text_gradient_surface("Level:%s Lives:%s Score:%s" % (
         ctx.level, ctx.lives, ctx.score), ctx.font_small, BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT)
     ctx.screen.blit(surface, (4, 4))
@@ -231,6 +236,9 @@ def make_high_scores(ctx: GameContext):
     new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
     return new_high_scores[:3]
 
+def print_collision_info(ball: Sprite, brick: Sprite):
+    info = '(%s, %s)(%s, %s)' % (ball.rect.left, ball.rect.top, brick.rect.left, brick.rect.top)
+    print(info)
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
@@ -265,8 +273,24 @@ def run_game(ctx: GameContext):
     for brick in ctx.bricks:
         if pygame.sprite.collide_mask(ctx.ball_sprite, brick):
             ctx.bricks.remove(brick)
+
+            destroyed_brick = DisappearingSprite(brick.image, (0, 2), 32)
+            bx = brick.rect.left
+            by = brick.rect.top
+            destroyed_brick.move_abs(brick.rect.left, brick.rect.top)
+            ctx.underlay.add(destroyed_brick)
+
+            
+            print_collision_info(ctx.ball_sprite, brick)
+            points_sprite = DisappearingSprite(vertical_text_gradient_surface('+10', ctx.font_small, BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT), (0, -1), 32)
+            px = bx + (brick.rect.width - points_sprite.rect.width) // 2
+            py = by + brick.rect.height // 2
+            points_sprite.move_abs(px, py)
+            ctx.underlay.add(points_sprite)
+
             num_bricks = len(ctx.bricks.sprites())
             # print(num_bricks)
+            # treat the collision as two balls bouncing off each other, but one is fixed
             ctx.ball_sprite.velocity[1] *= -1
             ctx.score = ctx.score + 10
             ctx.sounds.brick.play()
@@ -276,6 +300,7 @@ def run_game(ctx: GameContext):
                 return
 
     ctx.playfield.update()
+    ctx.underlay.update()
     render_screen(ctx)
 
     # ball speed gets faster over time
@@ -422,8 +447,8 @@ def run_enter_score(ctx: GameContext):
 
     display_name = ctx.score_name + '_'
 
-    surface = vertical_text_gradient_surface(
-        display_name, ctx.font_medium, BRIGHTGREEN_TO_MIDGREEN_GRADIENT)
+    surface = dual_vertical_text_gradient_surface(
+        display_name, ctx.font_medium, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
     x = (SCREEN_WIDTH - surface.get_rect().width)//2
     y = banner_text_surface.get_rect().height + (SCREEN_HEIGHT -
                                                  surface.get_rect().height)//2

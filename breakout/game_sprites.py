@@ -1,5 +1,5 @@
 from ast import Tuple
-from game_types import *
+from sprite import *
 from game_globals import *
 from game_surfaces import *
 
@@ -63,36 +63,14 @@ class CentredScrollingTextSpriteWithShadow(Sprite):
             self.rect.top = SCREEN_HEIGHT
 
 
-class CentredTextScrollingSprite(Sprite):
-    def __init__(self, text: str, font: pygame.font.Font, y: int, velocity):
-        text_surface = font.render(text, False, (255, 255, 255))
-
-        w = text_surface.get_rect().width
-        h = text_surface.get_rect().height
-
-        x = (SCREEN_WIDTH - text_surface.get_rect().width)//2
-        rect = text_surface.get_rect()
-        rect.centerx = x + w // 2
-        rect.centery = y + h // 2
-
-        self.velocity = velocity
-
-        super().__init__((text_surface, rect))
-
-    def update(self):
-        self.rect.move_ip(self.velocity)
-        if (self.rect.bottom < 0):
-            self.rect.top = SCREEN_HEIGHT
-
-
 class ScrollingSprite(Sprite):
-    def __init__(self, surface: pygame.Surface, x, y: int, velocity):
+    def __init__(self, surface: pygame.Surface, velocity):
 
         w = surface.get_rect().width
         h = surface.get_rect().height
         rect = surface.get_rect()
         rect.centerx = w // 2
-        rect.centery = y + h // 2
+        rect.centery = h // 2
 
         self.velocity = velocity
 
@@ -102,3 +80,26 @@ class ScrollingSprite(Sprite):
         self.rect.move_ip(self.velocity)
         if (self.rect.bottom < 0):
             self.rect.top = SCREEN_HEIGHT
+        if (self.rect.left < 0):
+            self.rect.left = SCREEN_WIDTH
+
+class DisappearingSprite(Sprite):
+    def __init__(self, surface: pygame.Surface, velocity, countdown):
+
+        w = surface.get_rect().width
+        h = surface.get_rect().height
+        rect = surface.get_rect()
+        rect.centerx = w // 2
+        rect.centery = h // 2
+
+        self.velocity = velocity
+
+        self.countdown = countdown
+
+        super().__init__((surface, rect))
+
+    def update(self):
+        self.rect.move_ip(self.velocity)
+        self.countdown = self.countdown - 1
+        if (self.countdown <= 0):
+            self.kill()

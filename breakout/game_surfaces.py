@@ -10,7 +10,7 @@ def png_ball(pos) -> tuple[pygame.Surface, pygame.Rect]:
 
 
 def ball_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
-    radius = 8
+    radius = 6
     image = pygame.Surface([radius*2, radius*2])
     image.fill(SCREEN_FILL_COLOR)
     rect = image.get_rect()
@@ -96,21 +96,21 @@ def mask_blit_surface(target_surface: pygame.Surface, mask_surface: pygame.Surfa
     target_surface.set_colorkey((0, 0, 0))
 
 
-def vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient_top, gradient_bottom):
+def vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient: Gradient):
     mask = font.render(text, False, (255, 255, 255))
     target = vertical_gradient_filled_surface(
-        mask.get_size(), gradient_top, gradient_bottom)
+        mask.get_size(), gradient.start, gradient.end)
     mask_blit_surface(target, mask)
     return target
 
 
-def dual_vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient1_top, gradient1_bottom, gradient2_top, gradient2_bottom):
+def dual_vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient_top: Gradient, gradient_bottom: Gradient):
     mask = font.render(text, False, (255, 255, 255))
     sz = (mask.get_size()[0], mask.get_size()[1]//2)
     s1 = vertical_gradient_filled_surface(
-        sz, gradient1_top, gradient1_bottom)
+        sz, gradient_top.start, gradient_top.end)
     s2 = vertical_gradient_filled_surface(
-        sz, gradient2_top, gradient2_bottom)
+        sz, gradient_bottom.start, gradient_bottom.end)
     surface = pygame.Surface(mask.get_size())
     surface.blit(s1, (0, 0), None)
     surface.blit(s2, (0, sz[1]), None)
