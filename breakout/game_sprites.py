@@ -32,48 +32,10 @@ class BatSprite(Sprite):
         super().__init__(image_rect_tuple)
 
 
-class CentredScrollingTextSpriteWithShadow(Sprite):
-    def __init__(self, text: str, font: pygame.font.Font, y: int, velocity):
-        letters = font.render(text, False, (255, 255, 255))
-        shadow = font.render(text, False, (0, 0, 0))
-
-        w = letters.get_rect().width + 2
-        h = letters.get_rect().height + 2
-
-        text_surface = pygame.Surface([w, h])
-        text_surface.fill(SCREEN_FILL_COLOR)
-        text_surface.blit(shadow, (0, 0))
-        text_surface.blit(shadow, (2, 0))
-        text_surface.blit(shadow, (0, 2))
-        text_surface.blit(shadow, (2, 2))
-        text_surface.blit(letters, (1, 1))
-
-        x = (SCREEN_WIDTH - text_surface.get_rect().width)//2
-        rect = text_surface.get_rect()
-        rect.centerx = x + w // 2
-        rect.centery = y + h // 2
-
-        self.velocity = velocity
-
-        super().__init__((text_surface, rect))
-
-    def update(self):
-        self.rect.move_ip(self.velocity)
-        if (self.rect.bottom < 0):
-            self.rect.top = SCREEN_HEIGHT
-
-
 class ScrollingSprite(Sprite):
     def __init__(self, surface: pygame.Surface, velocity):
-
-        w = surface.get_rect().width
-        h = surface.get_rect().height
         rect = surface.get_rect()
-        rect.centerx = w // 2
-        rect.centery = h // 2
-
         self.velocity = velocity
-
         super().__init__((surface, rect))
 
     def update(self):
@@ -83,19 +45,12 @@ class ScrollingSprite(Sprite):
         if (self.rect.left < 0):
             self.rect.left = SCREEN_WIDTH
 
+
 class DisappearingSprite(Sprite):
     def __init__(self, surface: pygame.Surface, velocity, countdown):
-
-        w = surface.get_rect().width
-        h = surface.get_rect().height
         rect = surface.get_rect()
-        rect.centerx = w // 2
-        rect.centery = h // 2
-
         self.velocity = velocity
-
         self.countdown = countdown
-
         super().__init__((surface, rect))
 
     def update(self):

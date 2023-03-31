@@ -236,9 +236,45 @@ def make_high_scores(ctx: GameContext):
     new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
     return new_high_scores[:3]
 
-def print_collision_info(ball: Sprite, brick: Sprite):
-    info = '(%s, %s)(%s, %s)' % (ball.rect.left, ball.rect.top, brick.rect.left, brick.rect.top)
-    print(info)
+def handle_collision_physics(ball: Sprite, brick: Sprite):
+
+    div = 8
+    brick_mid_width = brick.rect.width / div
+    brick_mid_vertical = pygame.Rect(brick.rect.left + brick_mid_width, brick.rect.top, brick_mid_width * 6, brick.rect.height)
+    brick_mid_height = brick.rect.height / div
+    brick_mid_horizontal = pygame.Rect(brick.rect.left, brick.rect.top + brick_mid_height, brick.rect.height, brick_mid_height * 6)
+
+    brick_tl = pygame.Rect(brick.rect.left, brick.rect.top, brick_mid_width, brick_mid_height)
+    brick_tr = pygame.Rect(brick.rect.left + brick_mid_width * (div-1), brick.rect.top, brick_mid_width, brick_mid_height)
+    brick_bl = pygame.Rect(brick.rect.left, brick.rect.top + brick_mid_height * (div-1), brick_mid_width, brick_mid_height)
+    brick_br = pygame.Rect(brick.rect.left + brick_mid_width * (div-1), brick.rect.top + brick_mid_height * (div-1), brick_mid_width, brick_mid_height)
+
+    print('++++++++')
+    if brick_mid_vertical.colliderect(ball.rect):
+        print('mv')
+        ball.velocity[1] *= -1
+        return
+
+    if brick_mid_horizontal.colliderect(ball.rect):
+        print('mh')
+        ball.velocity[0] *= -1
+        return
+    
+    if brick_tl.colliderect(ball.rect):
+        print('tl')
+        return
+    
+    if brick_tr.colliderect(ball.rect):
+        print('tr')
+        return
+    
+    if brick_bl.colliderect(ball.rect):
+        print('bl')
+        return
+    
+    if brick_br.colliderect(ball.rect):
+        print('br')
+        return
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
@@ -281,7 +317,7 @@ def run_game(ctx: GameContext):
             ctx.underlay.add(destroyed_brick)
 
             
-            print_collision_info(ctx.ball_sprite, brick)
+            handle_collision_physics(ctx.ball_sprite, brick)
             points_sprite = DisappearingSprite(vertical_text_gradient_surface('+10', ctx.font_small, BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT), (0, -1), 32)
             px = bx + (brick.rect.width - points_sprite.rect.width) // 2
             py = by + brick.rect.height // 2
@@ -291,7 +327,7 @@ def run_game(ctx: GameContext):
             num_bricks = len(ctx.bricks.sprites())
             # print(num_bricks)
             # treat the collision as two balls bouncing off each other, but one is fixed
-            ctx.ball_sprite.velocity[1] *= -1
+
             ctx.score = ctx.score + 10
             ctx.sounds.brick.play()
             if (num_bricks == 0):
