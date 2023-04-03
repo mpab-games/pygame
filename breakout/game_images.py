@@ -55,6 +55,7 @@ def rectangle_brick_shape(fill_color) -> pygame.Surface:
     pygame.draw.line(image, bright_color, (0, 0), (0, height - 2), 2)
     return image
 
+
 def octagon_brick_shape(fill_color) -> pygame.Surface:
     dark_color = (64, 64, 64)
     bright_color = (255, 255, 255)
@@ -106,8 +107,12 @@ def mask_blit_surface(target_surface: pygame.Surface, mask_surface: pygame.Surfa
     target_surface.set_colorkey((0, 0, 0))
 
 
+def text_surface(text: str, font: pygame.font.Font, color=(255, 255, 255)):
+    return font.render(text, False, color)
+
+
 def vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient: Gradient):
-    mask = font.render(text, False, (255, 255, 255))
+    mask = text_surface(text, font)
     target = vertical_gradient_filled_surface(
         mask.get_size(), gradient.start, gradient.end)
     mask_blit_surface(target, mask)
@@ -115,7 +120,7 @@ def vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient: 
 
 
 def dual_vertical_text_gradient_surface(text: str, font: pygame.font.Font, gradient_top: Gradient, gradient_bottom: Gradient):
-    mask = font.render(text, False, (255, 255, 255))
+    mask = text_surface(text, font)
     sz = (mask.get_size()[0], mask.get_size()[1]//2)
     s1 = vertical_gradient_filled_surface(
         sz, gradient_top.start, gradient_top.end)

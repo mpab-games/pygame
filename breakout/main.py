@@ -6,6 +6,7 @@ from game_globals import *
 from game_sprites import *
 from game_collision_logic import get_collision_normal
 
+
 class GameState(Enum):
     ATTRACT1 = auto()
     ATTRACT2 = auto()
@@ -77,7 +78,7 @@ class GameContext:
     sounds: SoundsContext
     ticks: int
     high_scores: list
-    score_name: str  # TODO replace with k, v dictionary per state
+    state_context: any
 
 
 def make_context(state: GameState):
@@ -97,11 +98,11 @@ def make_context(state: GameState):
     bat_sprite.move_abs(screen.get_rect().w / 2, screen.get_rect().h - 32)
     playfield.add(bat_sprite)
 
-    font_name = './assets/AtariFontFullVersion-ZJ23.ttf'
+    font_name = './assets/VeraMoBd.ttf'
 
-    font_small = pygame.font.Font(font_name, 16)
-    font_medium = pygame.font.Font(font_name, 24)
-    font_large = pygame.font.Font(font_name, 32)
+    font_small = pygame.font.Font(font_name, 24)
+    font_medium = pygame.font.Font(font_name, 32)
+    font_large = pygame.font.Font(font_name, 48)
     clock = pygame.time.Clock()
 
     high_scores = [("AAA", 100), ('BBB', 50), ('CCC', 10)]
@@ -126,7 +127,7 @@ def make_context(state: GameState):
         sounds,
         pygame.time.get_ticks(),  # ticks
         high_scores,
-        '')
+        None)  # state context
 
     reset_ball(context)
 
@@ -161,7 +162,7 @@ def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str, gra
 
 
 def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, high_scores: list):
-    yoff = font.get_height() * 1.5
+    yoff = font.get_height()
 
     sprite = make_vertically_scrolling_text_sprite(
         font, "Today's High Scores", MIDBLUE_TO_LIGHTBLUE_GRADIENT, RED_TO_ORANGE_GRADIENT)
@@ -169,13 +170,14 @@ def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, h
                     2, SCREEN_HEIGHT + yoff)
     group.add(sprite)
 
-    xpos = None
+    dummy_text_surface = text_surface('abc   0123456789', font)
+    xpos = (SCREEN_WIDTH - dummy_text_surface.get_rect().width) // 2
     for idx, (name, score) in enumerate(high_scores):
-        text = "%s  %s" % (name, score)
+        justified_name = name.ljust(3, ' ')
+        justified_score = str(score).rjust(10, ' ')
+        text = justified_name + '   ' + justified_score
         sprite = make_vertically_scrolling_text_sprite(
             font, text, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
-        if xpos == None:
-            xpos = (SCREEN_WIDTH - sprite.rect.width) // 2
         sprite.move_abs(xpos, SCREEN_HEIGHT + yoff * (idx + 3))
         group.add(sprite)
 
@@ -193,8 +195,9 @@ def reset_ball(ctx: GameContext):
 
 
 def new_game(ctx: GameContext):
-    ctx.lives = 3
+    ctx.lives = 1
     ctx.level = 1
+    ctx.score = 0
     reset_ball(ctx)
     add_bricks(ctx.bricks)
 
@@ -241,9 +244,9 @@ def run_life_lost(ctx: GameContext):
         set_game_state(ctx, GameState.GET_READY)
 
 
-def make_high_scores(ctx: GameContext):
+def make_high_scores(ctx: GameContext, new_score_name, new_score):
     new_high_scores = ctx.high_scores.copy()
-    new_high_scores.append((ctx.score_name, ctx.score))
+    new_high_scores.append((new_score_name, new_score))
     new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
     return new_high_scores[:3]
 
@@ -251,8 +254,9 @@ def make_high_scores(ctx: GameContext):
 def handle_ball_brick_collision_physics(ball: BallSprite, brick: ImageSprite):
     (collision_info, normal) = get_collision_normal(ball, brick)
 
-    if collision_info == 'unknown': # TODO BUG
-        print ('%s %s %s %s %s' % (ball.pos, ball.dir, ball.velocity, ball.rect, brick.rect))
+    if collision_info == 'unknown':  # TODO BUG
+        print('%s %s %s %s %s' %
+              (ball.pos, ball.dir, ball.velocity, ball.rect, brick.rect))
 
     ball.reflect(normal)
 
@@ -273,7 +277,7 @@ def run_game(ctx: GameContext):
             ctx.level = 0
             reset_ball(ctx)
 
-            new_high_scores = make_high_scores(ctx)
+            new_high_scores = make_high_scores(ctx, '', ctx.score)
             if (new_high_scores != ctx.high_scores):
                 set_game_state(ctx, GameState.GAME_OVER_HIGH_SCORE)
                 return
@@ -343,6 +347,7 @@ def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.fon
 def set_game_state(ctx: GameContext, game_state: GameState):
     ctx.ticks = pygame.time.get_ticks()
     ctx.game_state = game_state
+    ctx.state_context = None
 
 
 def run_attract1(ctx: GameContext):
@@ -432,6 +437,16 @@ def run_level_complete(ctx: GameContext):
 
 
 def run_enter_score(ctx: GameContext):
+
+    class StateContext():
+        def __init__(self, score_name=''):
+            self.score_name = score_name
+
+    if ctx.state_context is None:
+        ctx.state_context = StateContext()
+
+    state_context: StateContext = ctx.state_context
+
     char = ''
 
     for event in pygame.event.get():
@@ -439,28 +454,27 @@ def run_enter_score(ctx: GameContext):
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
                 # TODO add state NEW_GAME
                 set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
-                ctx.high_scores = make_high_scores(ctx)
+                ctx.high_scores = make_high_scores(ctx, ctx.name, ctx.score)
                 ctx.overlay = pygame.sprite.RenderPlain()
                 add_high_score_sprites(
                     ctx.overlay, ctx.font_medium, ctx.high_scores)
-                ctx.score_name = ''
                 return
 
             char = pygame.key.name(event.key)
 
-            if char == 'backspace' and len(ctx.score_name):
-                ctx.score_name = ctx.score_name[:-1]
+            if char == 'backspace' and len(state_context.score_name):
+                state_context.score_name = state_context.score_name[:-1]
                 ctx.sounds.key_press.play()
 
-            if len(char) == 1 and len(ctx.score_name) < 3:
-                ctx.score_name = ctx.score_name + char
+            if len(char) == 1 and len(state_context.score_name) < 3:
+                state_context.score_name = state_context.score_name + char
                 ctx.sounds.key_press.play()
 
     ctx.screen.fill(SCREEN_FILL_COLOR)
     banner_text_surface = blit_centred_banner_text(
         ctx.screen, "New High Score!", ctx.font_large)
 
-    display_name = ctx.score_name + '_'
+    display_name = state_context.score_name + '_'
 
     surface = dual_vertical_text_gradient_surface(
         display_name, ctx.font_medium, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)

@@ -9,7 +9,6 @@
 - brick positioning per level (creeps down the screen)
 - bug: sometimes the ball goes straight through the bricks
 - bug: ball/bat collisions: ball can get trapped in the bat collision surface and not bounce cleanly away
-- bug: high score entry text position & cursor are misaligned
 
 ### Done
 
@@ -32,6 +31,7 @@
   - <rect(151, 189, 12, 12)> <rect(160, 180, 80, 30)>
   - left edge collision box was incorrect
   - also implemented default normal reflection on ball sprite
+- bugfix: high score entry text position & cursor are misaligned (font was not monospace)
 
 ## Quality Improvements
 
@@ -41,6 +41,7 @@
 - use a nicer palette
 - add animations (e.g. when a brick is destroyed)
 - color-fill for fonts, similar to https://www.dafont.com/press-start-2p.font
+- find a free, arcade-stype monospace font
 
 ## Find better sound effects
 
