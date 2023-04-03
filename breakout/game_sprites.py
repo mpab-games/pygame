@@ -1,46 +1,43 @@
 from sprite_types import *
 from game_globals import *
-from game_surfaces import *
+from game_images import *
 
 
-class xBallSprite(VecImageSprite):
-    def __init__(self, image: pygame.Surface, velocity: float, direction: pygame.math.Vector2, frame: pygame.rect.Rect, rect_collision_sound: pygame.mixer.Sound):
-        super().__init__(image, velocity, direction)
-        self.rect_collision_sound = rect_collision_sound
+class BallSprite(VecImageSprite):
+
+    def __init__(self,
+                 image: pygame.image,
+                 startpos: pygame.math.Vector2,
+                 velocity: float,
+                 startdir: pygame.math.Vector2,
+                 frame: pygame.rect.Rect,
+                 rect_collision_sound: pygame.mixer.Sound):
+        super().__init__(image, startpos, velocity, startdir)
         self.frame = frame
-        
-        print ('---------------')
-        print (type(self.pos))
-        print (type(self.direction))
-        print (type(self.velocity))
-
-    def reflect(self, normal: pygame.math.Vector2):
-        self.direction = self.direction.reflect(normal)
+        self.rect_collision_sound = rect_collision_sound
 
     def update(self):
-        self.pos += self.direction * self.velocity
+        new_vel = pygame.math.Vector2(self.dir * self.velocity)
+        self.pos += new_vel
         self.rect.center = round(self.pos.x), round(self.pos.y)
 
-    def xupdate(self):
-        self.pos += self.direction * self.velocity
         if self.rect.left <= self.frame.left:
-            self.reflect(1, 0)
             self.rect_collision_sound.play()
+            self.reflect((1, 0))
         if self.rect.right >= self.frame.right:
-            self.reflect(-1, 0)
             self.rect_collision_sound.play()
+            self.reflect((-1, 0))
         if self.rect.top <= self.frame.top:
-            self.reflect(0, 1)
             self.rect_collision_sound.play()
+            self.reflect((0, 1))
         if self.rect.bottom >= self.frame.bottom:
-            self.reflect(0, -1)
             self.rect_collision_sound.play()
+            self.reflect((0, -1))
         self.rect.clamp_ip(self.frame)
 
 
 class BrickSprite(ImageSprite):
-    def __init__(self):
-        image = brick_shape(BRICK_FILL_COLOR)
+    def __init__(self, image: pygame.image):
         super().__init__(image)
 
 

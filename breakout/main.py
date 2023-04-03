@@ -4,56 +4,7 @@ from dataclasses import dataclass
 
 from game_globals import *
 from game_sprites import *
-from logic import get_collision_normal
-
-
-class BallSprite(pygame.sprite.Sprite):
-
-    def __init__(self,
-                 image: pygame.Surface,
-                 startpos: pygame.math.Vector2,
-                 velocity: float,
-                 startdir: pygame.math.Vector2,
-                 frame: pygame.rect.Rect,
-                 rect_collision_sound: pygame.mixer.Sound):
-        super().__init__()
-        self.pos = pygame.math.Vector2(startpos)
-        self.velocity = velocity
-        self.dir = pygame.math.Vector2(startdir).normalize()
-        self.image: pygame.Surface = image
-        self.rect: pygame.Rect = self.image.get_rect(
-            center=(round(self.pos.x), round(self.pos.y)))
-
-        self.frame = frame
-        self.rect_collision_sound = rect_collision_sound
-
-    def move_abs(self, x, y):
-        self.pos = pygame.math.Vector2((x, y))
-        self.rect = self.image.get_rect(
-            center=(round(self.pos.x), round(self.pos.y)))
-
-    def reflect(self, normal: pygame.math.Vector2):
-        self.dir = self.dir.reflect(pygame.math.Vector2(normal))
-
-    def update(self):
-        new_vel = pygame.math.Vector2(self.dir * self.velocity)
-        self.pos += new_vel
-        self.rect.center = round(self.pos.x), round(self.pos.y)
-
-        if self.rect.left <= self.frame.left:
-            self.rect_collision_sound.play()
-            self.reflect((1, 0))
-        if self.rect.right >= self.frame.right:
-            self.rect_collision_sound.play()
-            self.reflect((-1, 0))
-        if self.rect.top <= self.frame.top:
-            self.rect_collision_sound.play()
-            self.reflect((0, 1))
-        if self.rect.bottom >= self.frame.bottom:
-            self.rect_collision_sound.play()
-            self.reflect((0, -1))
-        self.rect.clamp_ip(self.frame)
-
+from game_collision_logic import get_collision_normal
 
 class GameState(Enum):
     ATTRACT1 = auto()
@@ -190,7 +141,7 @@ def add_bricks(group: pygame.sprite.Group):
         for col in range(BRICKS_PER_LINE):
             x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
             y = ((SCREEN_HEIGHT / 20) * row) + SCREEN_HEIGHT / 5
-            brick = BrickSprite()
+            brick = BrickSprite(rectangle_brick_shape(BRICK_FILL_COLOR))
             brick.move_abs(x, y)
             group.add(brick)
 

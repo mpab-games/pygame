@@ -36,8 +36,27 @@ def deadly_border_shape() -> pygame.Surface:
     return image
 
 
-def brick_shape(fill_color) -> pygame.Surface:
-    dark_color = (0, 0, 0)
+def rectangle_brick_shape(fill_color) -> pygame.Surface:
+    dark_color = (64, 64, 64)
+    bright_color = (255, 255, 255)
+
+    width = SCREEN_WIDTH / BRICKS_PER_LINE
+    height = SCREEN_HEIGHT / 20
+    image = pygame.Surface([width, height])
+    image.fill(SCREEN_FILL_COLOR)
+    pygame.draw.rect(image, fill_color, (0, 0, width, height))
+
+    pygame.draw.line(image, dark_color, (0, height - 2),
+                     (width - 2, height - 2), 2)
+    pygame.draw.line(image, dark_color, (width - 2, 0),
+                     (width - 2, height - 2), 2)
+
+    pygame.draw.line(image, bright_color, (0, 0), (width - 2, 0), 2)
+    pygame.draw.line(image, bright_color, (0, 0), (0, height - 2), 2)
+    return image
+
+def octagon_brick_shape(fill_color) -> pygame.Surface:
+    dark_color = (64, 64, 64)
     bright_color = (255, 255, 255)
 
     width = SCREEN_WIDTH / BRICKS_PER_LINE
