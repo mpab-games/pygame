@@ -1,11 +1,17 @@
 # Basic breakout game using pygame
 
-## Pre-requisites
+Pre-requisites
 
-Python 3 is installed on your system
-tested with python 3, not tested with python 2
+- Python 3 is installed on your system
+- tested with python 3.11
+- not tested with python 2
 
-## Setup/Installation
+Compatibility
+
+- Windows 11
+- MacOS
+
+Setup/Installation
 
 ```sh
 # setup
