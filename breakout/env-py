@@ -1,17 +1,29 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 $(return >/dev/null 2>&1)
 [ "$?" -ne "0" ] && echo "ERROR: $0 must be sourced to activate environment" && exit
 
-export PYTHON_ENVIRONMENT=venv
+export PYTHON_ENVIRONMENT="venv-$(uname)"
 
-function python_command() {
+python_command() {
   if ! [ -d ./$PYTHON_ENVIRONMENT ]; then
-      echo creating environment: $PYTHON_ENVIRONMENT
-      $PYTHON_CMD -m venv ./venv
+      echo creating environment: $PYTHON_ENVIRONMENT using $PYTHON_CMD -m venv ./$PYTHON_ENVIRONMENT
+      $PYTHON_CMD -m venv ./$PYTHON_ENVIRONMENT
   fi
-  echo activating environment: $PYTHON_ENVIRONMENT
-  . ./$PYTHON_ENVIRONMENT/Scripts/activate
+
+  if [ -d ./$PYTHON_ENVIRONMENT ]; then
+      echo found environment: $PYTHON_ENVIRONMENT
+  fi
+
+  if [ -e ./$PYTHON_ENVIRONMENT/Scripts/activate ]; then
+    echo activating environment: ./$PYTHON_ENVIRONMENT/Scripts/activate
+    . ./$PYTHON_ENVIRONMENT/Scripts/activate
+  fi
+
+  if [ -e ./$PYTHON_ENVIRONMENT/bin/activate ]; then
+    echo activating environment: ./$PYTHON_ENVIRONMENT/bin/activate
+    . ./$PYTHON_ENVIRONMENT/bin/activate
+  fi
 }
 
 export PYTHON_CMD=
@@ -40,4 +52,4 @@ if [ $(command -v python2) ]; then
   return
 fi
 
-echo python not found - can't set environment
+echo 'python not found - cannot set environment'
