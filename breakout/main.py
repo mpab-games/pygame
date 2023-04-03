@@ -8,8 +8,7 @@ from game_collision_logic import get_collision_normal
 
 
 class GameState(Enum):
-    ATTRACT1 = auto()
-    ATTRACT2 = auto()
+    ATTRACT = auto()
     SHOW_HIGH_SCORES = auto()
     RUNNING = auto()
     LIFE_LOST = auto()
@@ -18,6 +17,26 @@ class GameState(Enum):
     GAME_OVER = auto()
     GAME_OVER_HIGH_SCORE = auto()
     ENTER_HIGH_SCORE = auto()
+
+
+class GameStateContext():
+    def __init__(self, ticks_resolution: int = 500):
+        self.ticks_ms = pygame.time.get_ticks()
+        self.ticks_resolution = ticks_resolution
+        self.ticks = 0
+        self.ticks_counter_ms = 0
+        self.ticks_counter = 0
+        self.custom_data: any = None
+
+    def tick(self) -> bool:
+        ticks_now = pygame.time.get_ticks()
+        if ticks_now - self.ticks >= self.ticks_resolution:
+            self.ticks = ticks_now
+            self.ticks_counter_ms += self.ticks_resolution
+            self.ticks_counter += 1
+
+    def reset_ticks(self):
+        self.ticks_counter = self.ticks_counter_ms = 0
 
 
 @dataclass
@@ -59,7 +78,6 @@ def sounds_init():
 class GameContext:
     """game context."""
     screen_rect: pygame.Rect
-    game_state: GameState
     level: int
     screen: pygame.Surface
     bat_sprite: ImageSprite
@@ -76,12 +94,12 @@ class GameContext:
     score: int
     lives: int
     sounds: SoundsContext
-    ticks: int
     high_scores: list
-    state_context: any
+    game_state: GameState
+    game_state_context: GameStateContext
 
 
-def make_context(state: GameState):
+def make_context():
     screen_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
     screen = game_init(screen_rect)
     sounds = sounds_init()
@@ -109,7 +127,6 @@ def make_context(state: GameState):
 
     context = GameContext(
         screen_rect,
-        state,
         0,
         screen,
         bat_sprite,
@@ -123,11 +140,11 @@ def make_context(state: GameState):
         font_small,
         font_medium,
         font_large,
-        0, 3,  # score, lives
+        0, 0,  # score, lives
         sounds,
-        pygame.time.get_ticks(),  # ticks
         high_scores,
-        None)  # state context
+        None,  # game state
+        None)  # game state context
 
     reset_ball(context)
 
@@ -195,7 +212,7 @@ def reset_ball(ctx: GameContext):
 
 
 def new_game(ctx: GameContext):
-    ctx.lives = 3
+    ctx.lives = 1
     ctx.level = 1
     ctx.score = 0
     reset_ball(ctx)
@@ -227,7 +244,7 @@ def run_get_ready(ctx: GameContext):
     render_screen(ctx)
     blit_centred_banner_text(ctx.screen, "GET READY!", ctx.font_large)
 
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+    if (ctx.game_state_context.ticks_counter_ms >= 2000):
         set_game_state(ctx, GameState.RUNNING)
 
 
@@ -239,7 +256,7 @@ def run_life_lost(ctx: GameContext):
         ctx.lives) if ctx.lives != 1 else "%s LIFE LEFT" % (ctx.lives)
     blit_centred_banner_text(ctx.screen, text, ctx.font_large)
 
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+    if (ctx.game_state_context.ticks_counter_ms >= 2000):
         ctx.sounds.get_ready.play()
         set_game_state(ctx, GameState.GET_READY)
 
@@ -323,10 +340,8 @@ def run_game(ctx: GameContext):
     render_screen(ctx)
 
     # ball speed gets faster over time
-    last_ticks = ctx.ticks
-    now_ticks = pygame.time.get_ticks()
-    if (now_ticks - last_ticks > 20000):  # check every 20 seconds
-        ctx.ticks = now_ticks
+    if (ctx.game_state_context.ticks_counter_ms >= 20000):
+        ctx.game_state_context.reset_ticks()
         ball_speed = ctx.ball_sprite.velocity + 1
         if (ball_speed <= 20):  # maximum speed clamp
             ctx.ball_sprite.velocity = ball_speed
@@ -346,10 +361,10 @@ def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.fon
 def set_game_state(ctx: GameContext, game_state: GameState):
     ctx.ticks = pygame.time.get_ticks()
     ctx.game_state = game_state
-    ctx.state_context = None
+    ctx.game_state_context = GameStateContext()
 
 
-def run_attract1(ctx: GameContext):
+def run_attract(ctx: GameContext):
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONUP:
             ctx.sounds.get_ready.play()
@@ -359,26 +374,16 @@ def run_attract1(ctx: GameContext):
 
     ctx.playfield.update()
     render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "Press Mouse Button", ctx.font_large)
 
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
-        set_game_state(ctx, GameState.ATTRACT2)
-
-
-def run_attract2(ctx: GameContext):
-    for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONUP:
-            ctx.sounds.get_ready.play()
-            set_game_state(ctx, GameState.GET_READY)  # TODO add state NEW_GAME
-            new_game(ctx)
-            return
-
-    ctx.playfield.update()
-    render_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "To Start", ctx.font_large)
-
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+    text = ''
+    if (0 <= ctx.game_state_context.ticks_counter_ms <= 2000):
+        text = 'Press Mouse Button'
+    elif (2000 <= ctx.game_state_context.ticks_counter_ms <= 4000):
+        text = 'To Start'
+    else:
         set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
+
+    blit_centred_banner_text(ctx.screen, text, ctx.font_large)
 
 
 def run_show_high_scores(ctx: GameContext):
@@ -395,8 +400,8 @@ def run_show_high_scores(ctx: GameContext):
     ctx.overlay.draw(ctx.screen)
     ctx.overlay.update()
 
-    if (pygame.time.get_ticks() - ctx.ticks > 10000):
-        set_game_state(ctx, GameState.ATTRACT1)
+    if (ctx.game_state_context.ticks_counter_ms >= 10000):
+        set_game_state(ctx, GameState.ATTRACT)
 
 
 def run_gameover(ctx: GameContext):
@@ -405,8 +410,8 @@ def run_gameover(ctx: GameContext):
     render_screen(ctx)
     blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
-        set_game_state(ctx, GameState.ATTRACT1)
+    if (ctx.game_state_context.ticks_counter_ms >= 2000):
+        set_game_state(ctx, GameState.ATTRACT)
 
 
 def run_gameover_high_score(ctx: GameContext):
@@ -415,7 +420,7 @@ def run_gameover_high_score(ctx: GameContext):
     render_screen(ctx)
     blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+    if (ctx.game_state_context.ticks_counter_ms >= 2000):
         set_game_state(ctx, GameState.ENTER_HIGH_SCORE)
 
 
@@ -426,7 +431,7 @@ def run_level_complete(ctx: GameContext):
     ctx.underlay.update()
     blit_centred_banner_text(ctx.screen, "LEVEL COMPLETE", ctx.font_large)
 
-    if (pygame.time.get_ticks() - ctx.ticks > 2000):
+    if (ctx.game_state_context.ticks_counter_ms >= 2000):
         ctx.level = ctx.level + 1
         reset_ball(ctx)
         add_bricks(ctx.bricks)
@@ -437,26 +442,10 @@ def run_level_complete(ctx: GameContext):
 
 def run_enter_high_score(ctx: GameContext):
 
-    class StateContext():
-        def __init__(self, score_name='', ticks_expiry=500):
-            self.score_name = score_name
-            self.ticks = pygame.time.get_ticks()
-            self.ticks_expiry = ticks_expiry
-            self.ticks_toggle = True
+    if ctx.game_state_context.custom_data is None:
+        ctx.game_state_context.custom_data = ''
 
-        def tick(self) -> bool:
-            ticks_now = pygame.time.get_ticks()
-            if ticks_now - self.ticks >= self.ticks_expiry:
-                self.ticks = ticks_now
-                self.ticks_toggle = not self.ticks_toggle
-                return True
-            return False
-
-    if ctx.state_context is None:
-        ctx.state_context = StateContext()
-
-    state_context: StateContext = ctx.state_context
-    state_context.tick()
+    score_name: str = ctx.game_state_context.custom_data
 
     char = ''
 
@@ -465,28 +454,27 @@ def run_enter_high_score(ctx: GameContext):
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
                 # TODO add state NEW_GAME
                 set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
-                ctx.high_scores = make_high_scores(ctx, state_context.score_name, ctx.score)
+                ctx.high_scores = make_high_scores(
+                    ctx, score_name, ctx.score)
                 ctx.overlay = pygame.sprite.RenderPlain()
                 add_high_score_sprites(
                     ctx.overlay, ctx.font_medium, ctx.high_scores)
                 return
 
             char = pygame.key.name(event.key)
-
-            if char == 'backspace' and len(state_context.score_name):
-                state_context.score_name = state_context.score_name[:-1]
+            if char == 'backspace' and len(score_name):
+                score_name = score_name[:-1]
                 ctx.sounds.key_press.play()
-
-            if len(char) == 1 and len(state_context.score_name) < 3:
-                state_context.score_name = state_context.score_name + char
+            elif len(char) == 1 and len(score_name) < 3:
+                score_name = score_name + char.upper()
                 ctx.sounds.key_press.play()
 
     ctx.screen.fill(SCREEN_FILL_COLOR)
     banner_text_surface = blit_centred_banner_text(
         ctx.screen, "New High Score!", ctx.font_large)
 
-    cursor = '_' if state_context.ticks_toggle else ' '
-    display_name = state_context.score_name + cursor
+    cursor = '_' if ctx.game_state_context.ticks_counter & 1 else ' '
+    display_name = score_name + cursor
 
     surface = dual_vertical_text_gradient_surface(
         display_name, ctx.font_medium, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
@@ -495,17 +483,18 @@ def run_enter_high_score(ctx: GameContext):
                                                  surface.get_rect().height)//2
     ctx.screen.blit(surface, (x, y))
 
+    ctx.game_state_context.custom_data = score_name
+
 
 def run_game_state(ctx: GameContext):
     if pygame.event.peek(eventtype=pygame.QUIT):
         return False
 
-    match (ctx.game_state):
-        case GameState.ATTRACT1:
-            run_attract1(ctx)
+    ctx.game_state_context.tick()
 
-        case GameState.ATTRACT2:
-            run_attract2(ctx)
+    match (ctx.game_state):
+        case GameState.ATTRACT:
+            run_attract(ctx)
 
         case GameState.SHOW_HIGH_SCORES:
             run_show_high_scores(ctx)
@@ -535,10 +524,11 @@ def run_game_state(ctx: GameContext):
 
 
 def main():
-    ctx = make_context(GameState.GAME_OVER)
+    ctx = make_context()
     reset_ball(ctx)
     add_high_score_sprites(ctx.overlay, ctx.font_medium, ctx.high_scores)
 
+    set_game_state(ctx, GameState.GAME_OVER)
     while (run_game_state(ctx)):
         pygame.display.flip()
         ctx.clock.tick(60)
