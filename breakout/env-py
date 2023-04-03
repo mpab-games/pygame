@@ -1,0 +1,43 @@
+#!/bin/sh
+
+$(return >/dev/null 2>&1)
+[ "$?" -ne "0" ] && echo "ERROR: $0 must be sourced to activate environment" && exit
+
+export PYTHON_ENVIRONMENT=venv
+
+function python_command() {
+  if ! [ -d ./$PYTHON_ENVIRONMENT ]; then
+      echo creating environment: $PYTHON_ENVIRONMENT
+      $PYTHON_CMD -m venv ./venv
+  fi
+  echo activating environment: $PYTHON_ENVIRONMENT
+  . ./$PYTHON_ENVIRONMENT/Scripts/activate
+}
+
+export PYTHON_CMD=
+
+if [ $(command -v py) ]; then
+  export PYTHON_CMD=py
+  python_command
+  return
+fi
+
+if [ $(command -v python) ]; then
+  export PYTHON_CMD=python
+  python_command
+  return
+fi
+
+if [ $(command -v python3) ]; then
+  export PYTHON_CMD=python3
+  python_command
+  return
+fi
+
+if [ $(command -v python2) ]; then
+  export PYTHON_CMD=python2
+  python_command
+  return
+fi
+
+echo python not found - can't set environment

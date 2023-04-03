@@ -1,8 +1,6 @@
-# TODO
+# Feature and Bug Tracker
 
-## Basic Functionality
-
-### ToDo
+## ToDo
 
 - change the ball angle depending on where the bat is hit or dependent on bat velocity ('English')
 - bug?: sometimes multiple bricks are destroyed (could be related to brick rebound handling)
@@ -11,9 +9,9 @@
 - bug: ball/bat collisions: ball can get trapped in the bat collision surface and not bounce cleanly away
 - add debug/test mode if started using RMB - lives = 1, bricks = 1, draw normals, pause game
 
-### Done
+## Done
 
-- basic game
+- basic game and functionality
 - lives
 - scoring
 - high score
@@ -34,25 +32,28 @@
   - also implemented default normal reflection on ball sprite
 - bugfix: high score entry text position & cursor are misaligned (font was not monospace)
 - color-fill for fonts, similar to https://www.dafont.com/press-start-2p.font
+- added falling animation when a bric is destroyed
 
-## Quality Improvements
+---
+
+## Non-feature/non-functional backlog
+
+### Quality Improvements
 
 - case handling for text input
-- better sound cues
 - improved graphics
 - use a nicer palette
 - add animations (e.g. when a brick is destroyed)
 - find a free, arcade-stype monospace font
+- use better sound cues
+  - current: <https://www.freesoundslibrary.com/>
+- add a README with an installation guide
 
-## Technical Debt
+### Technical Debt
 
 - improve the state machine
   - implement a state-table
   - define exit conditions using the state table
   - define valid state transitions using the state-table (using guards)
-- implement pre and post state handlers when entring and exiting a state 
-- implement entry and exit function handlers when transitioning 
-
-## Find better sound effects
-
-- Current: <https://www.freesoundslibrary.com/>
+- implement pre and post state handlers when entring and exiting a state
+- implement entry and exit function handlers when transitioning

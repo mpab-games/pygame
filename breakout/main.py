@@ -212,7 +212,7 @@ def reset_ball(ctx: GameContext):
 
 
 def new_game(ctx: GameContext):
-    ctx.lives = 1
+    ctx.lives = 3
     ctx.level = 1
     ctx.score = 0
     reset_ball(ctx)
