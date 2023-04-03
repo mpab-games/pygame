@@ -1,10 +1,58 @@
 from enum import Enum, auto
-import math
 import pygame
 from dataclasses import dataclass
 
 from game_globals import *
 from game_sprites import *
+from logic import get_collision_normal
+
+
+class BallSprite(pygame.sprite.Sprite):
+
+    def __init__(self,
+                 image: pygame.Surface,
+                 startpos: pygame.math.Vector2,
+                 velocity: float,
+                 startdir: pygame.math.Vector2,
+                 frame: pygame.rect.Rect,
+                 rect_collision_sound: pygame.mixer.Sound):
+        super().__init__()
+        self.pos = pygame.math.Vector2(startpos)
+        self.velocity = velocity
+        self.dir = pygame.math.Vector2(startdir).normalize()
+        self.image: pygame.Surface = image
+        self.rect: pygame.Rect = self.image.get_rect(
+            center=(round(self.pos.x), round(self.pos.y)))
+
+        self.frame = frame
+        self.rect_collision_sound = rect_collision_sound
+
+    def move_abs(self, x, y):
+        self.pos = pygame.math.Vector2((x, y))
+        self.rect = self.image.get_rect(
+            center=(round(self.pos.x), round(self.pos.y)))
+
+    def reflect(self, normal: pygame.math.Vector2):
+        self.dir = self.dir.reflect(pygame.math.Vector2(normal))
+
+    def update(self):
+        new_vel = pygame.math.Vector2(self.dir * self.velocity)
+        self.pos += new_vel
+        self.rect.center = round(self.pos.x), round(self.pos.y)
+
+        if self.rect.left <= self.frame.left:
+            self.rect_collision_sound.play()
+            self.reflect((1, 0))
+        if self.rect.right >= self.frame.right:
+            self.rect_collision_sound.play()
+            self.reflect((-1, 0))
+        if self.rect.top <= self.frame.top:
+            self.rect_collision_sound.play()
+            self.reflect((0, 1))
+        if self.rect.bottom >= self.frame.bottom:
+            self.rect_collision_sound.play()
+            self.reflect((0, -1))
+        self.rect.clamp_ip(self.frame)
 
 
 class GameState(Enum):
@@ -58,12 +106,13 @@ def sounds_init():
 @dataclass
 class GameContext:
     """game context."""
+    screen_rect: pygame.Rect
     game_state: GameState
     level: int
     screen: pygame.Surface
-    bat_sprite: Sprite
+    bat_sprite: ImageSprite
     ball_sprite: BallSprite
-    bottom_border_sprite: Sprite
+    bottom_border_sprite: ImageSprite
     bricks: pygame.sprite.Group
     underlay: pygame.sprite.Group
     playfield: pygame.sprite.Group
@@ -74,7 +123,6 @@ class GameContext:
     font_large: pygame.font.Font
     score: int
     lives: int
-    ball_speed: int
     sounds: SoundsContext
     ticks: int
     high_scores: list
@@ -82,20 +130,20 @@ class GameContext:
 
 
 def make_context(state: GameState):
-    screen = game_init()
+    screen_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+    screen = game_init(screen_rect)
     sounds = sounds_init()
     playfield = pygame.sprite.RenderPlain()
     bricks = pygame.sprite.RenderPlain()
     overlay = pygame.sprite.RenderPlain()
     underlay = pygame.sprite.RenderPlain()
 
-    ball_sprite = BallSprite(ball_shape((0, 0)), sounds.wall)
-    playfield.add(ball_sprite)
+    deadly_border_sprite = ImageSprite(deadly_border_shape())
+    deadly_border_sprite.move_abs(0, screen_rect.bottom - 4)
+    playfield.add(deadly_border_sprite)
 
-    bottom_border_sprite = Sprite(border_shape())
-    playfield.add(bottom_border_sprite)
-
-    bat_sprite = BatSprite(screen.get_rect().w / 2, screen.get_rect().h - 32)
+    bat_sprite = BatSprite()
+    bat_sprite.move_abs(screen.get_rect().w / 2, screen.get_rect().h - 32)
     playfield.add(bat_sprite)
 
     font_name = './assets/AtariFontFullVersion-ZJ23.ttf'
@@ -108,12 +156,13 @@ def make_context(state: GameState):
     high_scores = [("AAA", 100), ('BBB', 50), ('CCC', 10)]
 
     context = GameContext(
+        screen_rect,
         state,
         0,
         screen,
         bat_sprite,
-        ball_sprite,
-        bottom_border_sprite,
+        None,
+        deadly_border_sprite,
         bricks,
         underlay,
         playfield,
@@ -122,11 +171,13 @@ def make_context(state: GameState):
         font_small,
         font_medium,
         font_large,
-        0, 0, 0,  # score, lives, ball_speed
+        0, 3,  # score, lives
         sounds,
         pygame.time.get_ticks(),  # ticks
         high_scores,
         '')
+
+    reset_ball(context)
 
     return context
 
@@ -139,15 +190,17 @@ def add_bricks(group: pygame.sprite.Group):
         for col in range(BRICKS_PER_LINE):
             x = (SCREEN_WIDTH / BRICKS_PER_LINE) * col
             y = ((SCREEN_HEIGHT / 20) * row) + SCREEN_HEIGHT / 5
-            group.add(BrickSprite(x, y))
+            brick = BrickSprite()
+            brick.move_abs(x, y)
+            group.add(brick)
 
 
-def game_init():
+def game_init(screen_rect: pygame.Rect):
     pygame.init()
     pygame.font.init()
     pygame.mouse.set_cursor(
         (8, 8), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
-    return pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    return pygame.display.set_mode((screen_rect.width, screen_rect.height))
 
 
 def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str, gradient_top, gradient_bottom):
@@ -159,16 +212,17 @@ def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str, gra
 def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, high_scores: list):
     yoff = font.get_height() * 1.5
 
-    sprite = make_vertically_scrolling_text_sprite(font, "Today's High Scores", MIDBLUE_TO_LIGHTBLUE_GRADIENT, RED_TO_ORANGE_GRADIENT)
+    sprite = make_vertically_scrolling_text_sprite(
+        font, "Today's High Scores", MIDBLUE_TO_LIGHTBLUE_GRADIENT, RED_TO_ORANGE_GRADIENT)
     sprite.move_abs((SCREEN_WIDTH - sprite.rect.width) //
                     2, SCREEN_HEIGHT + yoff)
     group.add(sprite)
 
     xpos = None
-
     for idx, (name, score) in enumerate(high_scores):
         text = "%s  %s" % (name, score)
-        sprite = make_vertically_scrolling_text_sprite(font, text, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
+        sprite = make_vertically_scrolling_text_sprite(
+            font, text, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
         if xpos == None:
             xpos = (SCREEN_WIDTH - sprite.rect.width) // 2
         sprite.move_abs(xpos, SCREEN_HEIGHT + yoff * (idx + 3))
@@ -176,9 +230,15 @@ def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, h
 
 
 def reset_ball(ctx: GameContext):
-    ctx.ball_speed = ctx.level + 1
-    ctx.ball_sprite.velocity = [ctx.ball_speed, ctx.ball_speed]
-    ctx.ball_sprite.move_abs(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+    if (ctx.ball_sprite is not None):
+        ctx.playfield.remove(ctx.ball_sprite)
+
+    start, velocity, direction = ctx.screen_rect.center, ctx.level + \
+        3, (1.0, 1.0)
+    ball_sprite = BallSprite(
+        ball_shape(), start, velocity, direction, ctx.screen_rect, ctx.sounds.wall)
+    ctx.playfield.add(ball_sprite)
+    ctx.ball_sprite = ball_sprite
 
 
 def new_game(ctx: GameContext):
@@ -236,54 +296,23 @@ def make_high_scores(ctx: GameContext):
     new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
     return new_high_scores[:3]
 
-def handle_collision_physics(ball: Sprite, brick: Sprite):
 
-    div = 8
-    brick_mid_width = brick.rect.width / div
-    brick_mid_vertical = pygame.Rect(brick.rect.left + brick_mid_width, brick.rect.top, brick_mid_width * 6, brick.rect.height)
-    brick_mid_height = brick.rect.height / div
-    brick_mid_horizontal = pygame.Rect(brick.rect.left, brick.rect.top + brick_mid_height, brick.rect.height, brick_mid_height * 6)
+def handle_ball_brick_collision_physics(ball: BallSprite, brick: ImageSprite):
+    (collision_info, normal) = get_collision_normal(ball, brick)
 
-    brick_tl = pygame.Rect(brick.rect.left, brick.rect.top, brick_mid_width, brick_mid_height)
-    brick_tr = pygame.Rect(brick.rect.left + brick_mid_width * (div-1), brick.rect.top, brick_mid_width, brick_mid_height)
-    brick_bl = pygame.Rect(brick.rect.left, brick.rect.top + brick_mid_height * (div-1), brick_mid_width, brick_mid_height)
-    brick_br = pygame.Rect(brick.rect.left + brick_mid_width * (div-1), brick.rect.top + brick_mid_height * (div-1), brick_mid_width, brick_mid_height)
+    if collision_info == 'unknown': # TODO BUG
+        print ('%s %s %s %s %s' % (ball.pos, ball.dir, ball.velocity, ball.rect, brick.rect))
 
-    print('++++++++')
-    if brick_mid_vertical.colliderect(ball.rect):
-        print('mv')
-        ball.velocity[1] *= -1
-        return
+    ball.reflect(normal)
 
-    if brick_mid_horizontal.colliderect(ball.rect):
-        print('mh')
-        ball.velocity[0] *= -1
-        return
-    
-    if brick_tl.colliderect(ball.rect):
-        print('tl')
-        return
-    
-    if brick_tr.colliderect(ball.rect):
-        print('tr')
-        return
-    
-    if brick_bl.colliderect(ball.rect):
-        print('bl')
-        return
-    
-    if brick_br.colliderect(ball.rect):
-        print('br')
-        return
 
 def run_game(ctx: GameContext):
     for event in pygame.event.get():
         handle_player_movement(ctx, event)
 
     if pygame.sprite.collide_mask(ctx.bat_sprite, ctx.ball_sprite):
-        if (ctx.ball_sprite.velocity[1] > 0):
-            ctx.ball_sprite.velocity[1] *= -1
-            ctx.sounds.bat.play()
+        ctx.ball_sprite.reflect((0, -1))
+        ctx.sounds.bat.play()
 
     if pygame.sprite.collide_mask(ctx.bottom_border_sprite, ctx.ball_sprite):
         ctx.lives = ctx.lives - 1
@@ -316,9 +345,9 @@ def run_game(ctx: GameContext):
             destroyed_brick.move_abs(brick.rect.left, brick.rect.top)
             ctx.underlay.add(destroyed_brick)
 
-            
-            handle_collision_physics(ctx.ball_sprite, brick)
-            points_sprite = DisappearingSprite(vertical_text_gradient_surface('+10', ctx.font_small, BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT), (0, -1), 32)
+            handle_ball_brick_collision_physics(ctx.ball_sprite, brick)
+            points_sprite = DisappearingSprite(vertical_text_gradient_surface(
+                '+10', ctx.font_small, BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT), (0, -1), 32)
             px = bx + (brick.rect.width - points_sprite.rect.width) // 2
             py = by + brick.rect.height // 2
             points_sprite.move_abs(px, py)
@@ -344,11 +373,9 @@ def run_game(ctx: GameContext):
     now_ticks = pygame.time.get_ticks()
     if (now_ticks - last_ticks > 20000):  # check every 20 seconds
         ctx.ticks = now_ticks
-        ctx.ball_speed = ctx.ball_speed + 1
-        if (ctx.ball_speed <= 20):  # maximum speed clamp
-            vx = math.copysign(ctx.ball_speed, ctx.ball_sprite.velocity[0])
-            vy = math.copysign(ctx.ball_speed, ctx.ball_sprite.velocity[1])
-            ctx.ball_sprite.velocity = [vx, vy]
+        ball_speed = ctx.ball_sprite.velocity + 1
+        if (ball_speed <= 20):  # maximum speed clamp
+            ctx.ball_sprite.velocity = ball_speed
 
     return True
 
@@ -441,6 +468,7 @@ def run_level_complete(ctx: GameContext):
     pygame.event.pump()
 
     render_screen(ctx)
+    ctx.underlay.update()
     blit_centred_banner_text(ctx.screen, "LEVEL COMPLETE", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):

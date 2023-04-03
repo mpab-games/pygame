@@ -2,46 +2,41 @@ import pygame
 from game_globals import *
 
 
-def png_ball(pos) -> tuple[pygame.Surface, pygame.Rect]:
+def png_ball(pos) -> pygame.Surface:
     image = pygame.image.load("./assets/ball.png")
     rect = image.get_rect()
     rect.center = pos
-    return image, rect
+    return image
 
 
-def ball_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
+def ball_shape() -> pygame.Surface:
     radius = 6
     image = pygame.Surface([radius*2, radius*2])
     image.fill(SCREEN_FILL_COLOR)
-    rect = image.get_rect()
-    rect.center = pos
     pygame.draw.circle(image, BALL_BORDER_COLOR, (radius, radius), radius)
     pygame.draw.circle(image, BALL_FILL_COLOR, (radius, radius), radius-1)
     image.set_colorkey(SCREEN_FILL_COLOR)
-    return image, rect
+    return image
 
 
-def bat_shape(pos) -> tuple[pygame.Surface, pygame.Rect]:
+def bat_shape() -> pygame.Surface:
     width = 80
     height = 16
     image = pygame.Surface([width, height])
     image.fill(SCREEN_FILL_COLOR)
-    rect = image.get_rect()
-    rect.center = pos
     pygame.draw.rect(image, BAT_BORDER_COLOR, (0, 0, width, height), 0, 7)
     pygame.draw.rect(image, BAT_FILL_COLOR, (1, 1, width-2, height-2), 0, 7)
-    return image, rect
+    return image
 
 
-def border_shape() -> tuple[pygame.Surface, pygame.Rect]:
-    image = pygame.Surface([SCREEN_WIDTH, 1])
-    image.fill(SCREEN_BORDER_COLOR)
-    rect = image.get_rect()
-    rect.bottom = SCREEN_HEIGHT
-    return image, rect
+def deadly_border_shape() -> pygame.Surface:
+    image = pygame.Surface([SCREEN_WIDTH, 4])
+    image.fill((255, 0, 0))
+    rect = image.get_rect(topleft=(0, SCREEN_HEIGHT - 4))
+    return image
 
 
-def brick_shape(pos, fill_color) -> tuple[pygame.Surface, pygame.Rect]:
+def brick_shape(fill_color) -> pygame.Surface:
     dark_color = (0, 0, 0)
     bright_color = (255, 255, 255)
 
@@ -49,10 +44,6 @@ def brick_shape(pos, fill_color) -> tuple[pygame.Surface, pygame.Rect]:
     height = SCREEN_HEIGHT / 20
     image = pygame.Surface([width, height])
     image.fill(SCREEN_FILL_COLOR)
-    rect = image.get_rect()
-    # rect.center = pos
-    rect.centerx = pos[0] + width / 2
-    rect.centery = pos[1] + height / 2
     pygame.draw.rect(image, fill_color, (0, 0, width, height))
 
     pygame.draw.line(image, dark_color, (0, height - 2),
@@ -62,7 +53,7 @@ def brick_shape(pos, fill_color) -> tuple[pygame.Surface, pygame.Rect]:
 
     pygame.draw.line(image, bright_color, (0, 0), (width - 2, 0), 2)
     pygame.draw.line(image, bright_color, (0, 0), (0, height - 2), 2)
-    return image, rect
+    return image
 
 
 def vertical_gradient_filled_surface(size, startcolor, endcolor) -> pygame.Surface:

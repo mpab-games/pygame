@@ -1,5 +1,0 @@
-#!/bin/sh
-
-. env-py
-pip install pygame
-pip install autopep8

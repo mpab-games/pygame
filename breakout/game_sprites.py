@@ -1,42 +1,60 @@
-from ast import Tuple
-from sprite import *
+from sprite_types import *
 from game_globals import *
 from game_surfaces import *
 
 
-class BallSprite(Sprite):
-    def __init__(self, image_rect_tuple, sound, velocity=[0, 0]):
-        super().__init__(image_rect_tuple)
-        self.sound = sound
-        self.velocity = velocity
+class xBallSprite(VecImageSprite):
+    def __init__(self, image: pygame.Surface, velocity: float, direction: pygame.math.Vector2, frame: pygame.rect.Rect, rect_collision_sound: pygame.mixer.Sound):
+        super().__init__(image, velocity, direction)
+        self.rect_collision_sound = rect_collision_sound
+        self.frame = frame
+        
+        print ('---------------')
+        print (type(self.pos))
+        print (type(self.direction))
+        print (type(self.velocity))
+
+    def reflect(self, normal: pygame.math.Vector2):
+        self.direction = self.direction.reflect(normal)
 
     def update(self):
-        if self.rect.left < 0 or self.rect.right >= SCREEN_WIDTH:
-            self.velocity[0] *= -1
-            self.sound.play()
-        if self.rect.top < 0 or self.rect.bottom >= SCREEN_HEIGHT:
-            self.velocity[1] *= -1
-            self.sound.play()
-        self.rect.move_ip(self.velocity)
+        self.pos += self.direction * self.velocity
+        self.rect.center = round(self.pos.x), round(self.pos.y)
+
+    def xupdate(self):
+        self.pos += self.direction * self.velocity
+        if self.rect.left <= self.frame.left:
+            self.reflect(1, 0)
+            self.rect_collision_sound.play()
+        if self.rect.right >= self.frame.right:
+            self.reflect(-1, 0)
+            self.rect_collision_sound.play()
+        if self.rect.top <= self.frame.top:
+            self.reflect(0, 1)
+            self.rect_collision_sound.play()
+        if self.rect.bottom >= self.frame.bottom:
+            self.reflect(0, -1)
+            self.rect_collision_sound.play()
+        self.rect.clamp_ip(self.frame)
 
 
-class BrickSprite(Sprite):
-    def __init__(self, x: int, y: int):
-        image_rect_tuple = brick_shape((x, y), (128, 128, 255))
-        super().__init__(image_rect_tuple)
+class BrickSprite(ImageSprite):
+    def __init__(self):
+        image = brick_shape(BRICK_FILL_COLOR)
+        super().__init__(image)
 
 
-class BatSprite(Sprite):
-    def __init__(self, x: int, y: int):
-        image_rect_tuple = bat_shape((x, y))
-        super().__init__(image_rect_tuple)
+class BatSprite(ImageSprite):
+    def __init__(self):
+        image = bat_shape()
+        super().__init__(image)
 
 
-class ScrollingSprite(Sprite):
+class ScrollingSprite(ImageSprite):
     def __init__(self, surface: pygame.Surface, velocity):
         rect = surface.get_rect()
         self.velocity = velocity
-        super().__init__((surface, rect))
+        super().__init__(surface)
 
     def update(self):
         self.rect.move_ip(self.velocity)
@@ -46,12 +64,12 @@ class ScrollingSprite(Sprite):
             self.rect.left = SCREEN_WIDTH
 
 
-class DisappearingSprite(Sprite):
+class DisappearingSprite(ImageSprite):
     def __init__(self, surface: pygame.Surface, velocity, countdown):
         rect = surface.get_rect()
         self.velocity = velocity
         self.countdown = countdown
-        super().__init__((surface, rect))
+        super().__init__((surface))
 
     def update(self):
         self.rect.move_ip(self.velocity)

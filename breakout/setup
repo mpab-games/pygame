@@ -1,0 +1,4 @@
+#!/bin/sh
+
+. env-py
+pip install -r requirements.txt
