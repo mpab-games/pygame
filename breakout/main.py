@@ -17,7 +17,7 @@ class GameState(Enum):
     LEVEL_COMPLETE = auto()
     GAME_OVER = auto()
     GAME_OVER_HIGH_SCORE = auto()
-    ENTER_SCORE = auto()
+    ENTER_HIGH_SCORE = auto()
 
 
 @dataclass
@@ -195,7 +195,7 @@ def reset_ball(ctx: GameContext):
 
 
 def new_game(ctx: GameContext):
-    ctx.lives = 1
+    ctx.lives = 3
     ctx.level = 1
     ctx.score = 0
     reset_ball(ctx)
@@ -275,7 +275,6 @@ def run_game(ctx: GameContext):
         if (ctx.lives <= 0):
             ctx.sounds.game_over.play()
             ctx.level = 0
-            reset_ball(ctx)
 
             new_high_scores = make_high_scores(ctx, '', ctx.score)
             if (new_high_scores != ctx.high_scores):
@@ -417,7 +416,7 @@ def run_gameover_high_score(ctx: GameContext):
     blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
     if (pygame.time.get_ticks() - ctx.ticks > 2000):
-        set_game_state(ctx, GameState.ENTER_SCORE)
+        set_game_state(ctx, GameState.ENTER_HIGH_SCORE)
 
 
 def run_level_complete(ctx: GameContext):
@@ -436,16 +435,28 @@ def run_level_complete(ctx: GameContext):
         set_game_state(ctx, GameState.GET_READY)
 
 
-def run_enter_score(ctx: GameContext):
+def run_enter_high_score(ctx: GameContext):
 
     class StateContext():
-        def __init__(self, score_name=''):
+        def __init__(self, score_name='', ticks_expiry=500):
             self.score_name = score_name
+            self.ticks = pygame.time.get_ticks()
+            self.ticks_expiry = ticks_expiry
+            self.ticks_toggle = True
+
+        def tick(self) -> bool:
+            ticks_now = pygame.time.get_ticks()
+            if ticks_now - self.ticks >= self.ticks_expiry:
+                self.ticks = ticks_now
+                self.ticks_toggle = not self.ticks_toggle
+                return True
+            return False
 
     if ctx.state_context is None:
         ctx.state_context = StateContext()
 
     state_context: StateContext = ctx.state_context
+    state_context.tick()
 
     char = ''
 
@@ -454,7 +465,7 @@ def run_enter_score(ctx: GameContext):
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
                 # TODO add state NEW_GAME
                 set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
-                ctx.high_scores = make_high_scores(ctx, ctx.name, ctx.score)
+                ctx.high_scores = make_high_scores(ctx, state_context.score_name, ctx.score)
                 ctx.overlay = pygame.sprite.RenderPlain()
                 add_high_score_sprites(
                     ctx.overlay, ctx.font_medium, ctx.high_scores)
@@ -474,7 +485,8 @@ def run_enter_score(ctx: GameContext):
     banner_text_surface = blit_centred_banner_text(
         ctx.screen, "New High Score!", ctx.font_large)
 
-    display_name = state_context.score_name + '_'
+    cursor = '_' if state_context.ticks_toggle else ' '
+    display_name = state_context.score_name + cursor
 
     surface = dual_vertical_text_gradient_surface(
         display_name, ctx.font_medium, ORANGE_TO_GOLD_GRADIENT, GOLD_TO_ORANGE_GRADIENT)
@@ -516,8 +528,8 @@ def run_game_state(ctx: GameContext):
         case GameState.LEVEL_COMPLETE:
             run_level_complete(ctx)
 
-        case GameState.ENTER_SCORE:
-            run_enter_score(ctx)
+        case GameState.ENTER_HIGH_SCORE:
+            run_enter_high_score(ctx)
 
     return True
 
