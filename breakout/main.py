@@ -144,11 +144,11 @@ def make_context():
     bat_sprite.move_abs(screen.get_rect().w / 2, screen.get_rect().h - 32)
     playfield.add(bat_sprite)
 
-    font_name = './assets/VeraMoBd.ttf'
+    font_name = './assets/arcade-legacy.ttf'
 
-    font_small = pygame.font.Font(font_name, 24)
-    font_medium = pygame.font.Font(font_name, 32)
-    font_large = pygame.font.Font(font_name, 48)
+    font_small = pygame.font.Font(font_name, 16)
+    font_medium = pygame.font.Font(font_name, 24)
+    font_large = pygame.font.Font(font_name, 32)
     clock = pygame.time.Clock()
 
     high_scores = [("AAA", 100), ('BBB', 50), ('CCC', 10)]
