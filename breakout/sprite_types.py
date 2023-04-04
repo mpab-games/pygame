@@ -6,8 +6,10 @@ class ImageSprite(pygame.sprite.Sprite):
         super().__init__()
         self.image = image
         self.rect = image.get_rect()
+        self.last_pos = (0, 0)
 
     def move_abs(self, x, y):
+        self.last_pos = (self.rect.left, self.rect.top)
         self.rect.move_ip(x - self.rect.left, y - self.rect.top)
 
 
@@ -18,7 +20,7 @@ class VecImageSprite(pygame.sprite.Sprite):
                  startpos: pygame.math.Vector2,
                  velocity: float,
                  startdir: pygame.math.Vector2):
-        
+
         super().__init__()
         self.pos = pygame.math.Vector2(startpos)
         self.velocity = velocity
@@ -33,7 +35,9 @@ class VecImageSprite(pygame.sprite.Sprite):
             center=(round(self.pos.x), round(self.pos.y)))
 
     def reflect(self, normal: pygame.math.Vector2):
+        if normal is None:
+            return
         vec_normal = pygame.math.Vector2(normal)
         self.dir = \
-            self.dir.reflect(vec_normal) if vec_normal.length() > 0 else self.dir.reflect(self.dir)
-
+            self.dir.reflect(vec_normal) if vec_normal.length(
+            ) > 0 else self.dir.reflect(self.dir)

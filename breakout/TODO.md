@@ -2,15 +2,16 @@
 
 ## ToDo
 
-- change the ball angle depending on where the bat is hit or dependent on bat velocity ('English')
 - bug?: sometimes multiple bricks are destroyed (could be related to brick rebound handling)
 - brick positioning per level (creeps down the screen)
 - bug: sometimes the ball goes straight through the bricks (is this related to the reflection handling?)
-- bug: ball/bat collisions: ball can get trapped in the bat collision surface and not bounce cleanly away
 - add debug/test mode if started using RMB - lives = 1, bricks = 1, draw normals, pause game
 
 ## Done
 
+- change the ball angle depending on where the bat is hit or dependent on bat velocity ('English')
+- bugfix: ball/bat collisions: ball can get trapped in the bat collision surface and not bounce cleanly away
+  - implemented cooldown/debounce logic after collision
 - basic game and functionality
 - lives
 - scoring
