@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 
+(exit 0) # clear last $0
 $(return >/dev/null 2>&1)
 [ "$?" -ne "0" ] && echo "ERROR: $0 must be sourced to activate environment" && exit
 
@@ -15,14 +16,18 @@ python_command() {
       echo found environment: $PYTHON_ENVIRONMENT
   fi
 
+  # windows
   if [ -e ./$PYTHON_ENVIRONMENT/Scripts/activate ]; then
     echo activating environment: ./$PYTHON_ENVIRONMENT/Scripts/activate
     . ./$PYTHON_ENVIRONMENT/Scripts/activate
+    python -m pip install --upgrade pip
   fi
 
+  # Linux, MacOS, ...
   if [ -e ./$PYTHON_ENVIRONMENT/bin/activate ]; then
     echo activating environment: ./$PYTHON_ENVIRONMENT/bin/activate
     . ./$PYTHON_ENVIRONMENT/bin/activate
+    python -m pip install --upgrade pip
   fi
 }
 
