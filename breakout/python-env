@@ -1,10 +1,12 @@
 #!/usr/bin/env sh
 
-(exit 0) # clear last $0
-$(return >/dev/null 2>&1)
-[ "$?" -ne "0" ] && echo "ERROR: $0 must be sourced to activate environment" && exit
+(exit 0) && $(return >/dev/null 2>&1) && : || { echo "$0: must be sourced"; exit; }
 
-export PYTHON_ENVIRONMENT="venv-$(uname)"
+echo $CMD_EXIT
+
+distro_name=$(eval "(lsb_release -ds || cat /etc/*release || uname -om) 2>/dev/null" | head -n1 | sed -e 's/PRETTY_NAME=//' -e 's/"//g' -e 's/ /-/g' -e 's/\//-/g')
+
+export PYTHON_ENVIRONMENT="venv-$distro_name"
 
 python_command() {
   if ! [ -d ./$PYTHON_ENVIRONMENT ]; then
