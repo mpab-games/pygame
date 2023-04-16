@@ -2,10 +2,7 @@ import pygame
 import math
 from game_draw_utils import draw_arrow
 
-from game_globals import *
-from game_images import ball_shape, rectangle_brick_shape
-from game_sprites import BallSprite, BrickSprite
-
+from game import sprite, color, shape, constant
 
 def octagonal_collision_analyzer(collider, collidee, width_unit=4, height_unit=4):
 
@@ -238,9 +235,9 @@ def rectangular_collision_analyzer(collider, collidee, width_unit=4, height_unit
 
 def test_analyze_collision_handling(screen: pygame.Surface):
 
-    def analyze_collision_handling(collidee: BrickSprite, collider: BallSprite):
+    def analyze_collision_handling(collidee: sprite.BrickSprite, collider: sprite.BallSprite):
 
-        screen.fill(SCREEN_FILL_COLOR)
+        screen.fill(color.SCREEN_COLOR)
         screen.fill((0, 0, 255), collidee.rect)
         (normal, collision_info, collision_rects, _, _,
          _) = rectangular_collision_analyzer(collider, collidee)
@@ -289,11 +286,11 @@ def test_analyze_collision_handling(screen: pygame.Surface):
     print('+++++++++++++++++++++++++++++++')
     print('test_analyze_collision_handling')
 
-    brick = BrickSprite(rectangle_brick_shape((0, 0, 0)))
+    brick = sprite.BrickSprite(shape.rectangle_brick_shape(0))
     brick.move_abs(160, 180)
 
     # 170, 189
-    ball = BallSprite(ball_shape(), (170, 189), 6,
+    ball = sprite.BallSprite(shape.ball_shape(), (170, 189), 6,
                       pygame.math.Vector2(1, 1), None, None)
 
     analyze_collision_handling(brick, ball)
@@ -351,7 +348,7 @@ def test_analyze_collision_handling(screen: pygame.Surface):
 
 
 if __name__ == "__main__":
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((constant.SCREEN_WIDTH, constant.SCREEN_HEIGHT))
     test_analyze_collision_handling(screen)
 
     running = True
