@@ -19,22 +19,19 @@ class GameState(Enum):
 
 
 class Ticker():
-    def __init__(self, resolution: int = 500):
-        self.resolution = resolution
+    def __init__(self):
         self.ticks = pygame.time.get_ticks()
         self.counter_ms = 0
         self.counter = 0
 
     def tick(self) -> bool:
         ticks_now = pygame.time.get_ticks()
-        if ticks_now - self.ticks >= self.resolution:
-            self.ticks = ticks_now
-            self.counter_ms += self.resolution # FIXME: will drift
-            self.counter += 1
+        ticks_diff = ticks_now - self.ticks
+        self.counter_ms = ticks_diff
 
     def reset(self):
+        self.ticks = pygame.time.get_ticks()
         self.counter = self.counter_ms = 0
-
 
 @dataclass
 class SoundsContext:
@@ -79,7 +76,7 @@ class GameContext:
     screen: pygame.Surface
     bat_sprite: sprite.BatSprite
     ball_sprite: sprite.BallSprite
-    bottom_border_sprite: sprite.ImageSprite
+    deadly_border_sprite: sprite.ImageSprite
     animations: pygame.sprite.Group
     playfield: pygame.sprite.Group
     bricks: pygame.sprite.Group
@@ -99,7 +96,8 @@ class GameContext:
 
 
 def create_game_context():
-    screen_rect = pygame.Rect(0, 0, constant.SCREEN_WIDTH, constant.SCREEN_HEIGHT)
+    screen_rect = pygame.Rect(
+        0, 0, constant.SCREEN_WIDTH, constant.SCREEN_HEIGHT)
     screen = pygame.display.set_mode((screen_rect.width, screen_rect.height))
     sounds = sounds_init()
 
@@ -108,13 +106,13 @@ def create_game_context():
     bricks = pygame.sprite.RenderPlain()
     overlay = pygame.sprite.RenderPlain()
 
-
     deadly_border_sprite = sprite.ImageSprite(shape.deadly_border_shape())
     deadly_border_sprite.move_abs(0, screen_rect.bottom - 4)
     playfield.add(deadly_border_sprite)
 
     bat_sprite = sprite.BatSprite()
-    bat_sprite.move_abs(screen.get_rect().w / 2, screen.get_rect().h - 2 * constant.BRICK_HEIGHT)
+    bat_sprite.move_abs(screen.get_rect().w / 2,
+                        screen.get_rect().h - 2 * constant.BRICK_HEIGHT)
     playfield.add(bat_sprite)
 
     font_name = './assets/arcade-legacy.ttf'
@@ -145,27 +143,27 @@ def create_game_context():
         sounds,
         high_scores,
         None,  # game state
-        Ticker(), # state_ticker
+        Ticker(),  # state_ticker
         Ticker(),  # ball_speed_ticker
-        None) # custom_data
+        None)  # custom_data
 
     reset_ball(context)
 
     return context
 
 
-def add_bricks(group: pygame.sprite.Group):
+def add_bricks(gctx: GameContext):
     # for testing
     # group.add(BrickSprite(220, 100))
     # return
-    bricks_y_offset = constant.BRICK_HEIGHT * 4 # TODO level
+    bricks_y_offset = constant.BRICK_HEIGHT * (gctx.level + 5)  # TODO level
     for row in range(constant.NUM_BRICK_ROWS):
         for col in range(constant.BRICKS_PER_ROW):
             x = col * constant.BRICK_WIDTH
             y = bricks_y_offset + row * constant.BRICK_HEIGHT
-            brick= sprite.BrickSprite(shape.rectangle_brick_shape(row))
+            brick = sprite.BrickSprite(shape.rectangle_brick_shape(row))
             brick.move_abs(x, y)
-            group.add(brick)
+            gctx.bricks.add(brick)
 
 
 def system_init():
@@ -173,7 +171,6 @@ def system_init():
     pygame.font.init()
     pygame.mouse.set_cursor(
         (8, 8), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
-    
 
 
 def make_vertically_scrolling_text_sprite(font: pygame.font.Font, text: str, gradient_top, gradient_bottom):
@@ -203,70 +200,70 @@ def add_high_score_sprites(group: pygame.sprite.Group, font: pygame.font.Font, h
         group.add(sprite)
 
 
-def reset_ball(ctx: GameContext):
-    if (ctx.ball_sprite is not None):
-        ctx.playfield.remove(ctx.ball_sprite)
+def reset_ball(gctx: GameContext):
+    if (gctx.ball_sprite is not None):
+        gctx.playfield.remove(gctx.ball_sprite)
 
-    start, velocity, direction = ctx.screen_rect.center, ctx.level + \
+    start, velocity, direction = gctx.screen_rect.center, gctx.level + \
         3, (1.0, 1.0)
     ball_sprite = sprite.BallSprite(
-        shape.ball_shape(), start, velocity, direction, ctx.screen_rect, ctx.sounds.wall)
-    ctx.playfield.add(ball_sprite)
-    ctx.ball_sprite = ball_sprite
+        shape.ball_shape(), start, velocity, direction, gctx.screen_rect, gctx.sounds.wall)
+    gctx.playfield.add(ball_sprite)
+    gctx.ball_sprite = ball_sprite
 
 
-def new_game(ctx: GameContext):
-    ctx.lives = 3
-    ctx.level = 1
-    ctx.score = 0
-    reset_ball(ctx)
-    add_bricks(ctx.bricks)
+def new_game(gctx: GameContext):
+    gctx.lives = 3
+    gctx.level = 1
+    gctx.score = 0
+    reset_ball(gctx)
+    add_bricks(gctx)
 
 
-def draw_game_screen(ctx: GameContext):
-    ctx.screen.fill(color.SCREEN_COLOR)
-    ctx.playfield.draw(ctx.screen)
-    ctx.bricks.draw(ctx.screen)
-    ctx.animations.draw(ctx.screen)
+def draw_game_screen(gctx: GameContext):
+    gctx.screen.fill(color.SCREEN_COLOR)
+    gctx.playfield.draw(gctx.screen)
+    gctx.bricks.draw(gctx.screen)
+    gctx.animations.draw(gctx.screen)
 
     surface = shape.vertical_text_gradient_surface("Level:%s Lives:%s Score:%s" % (
-        ctx.level, ctx.lives, ctx.score), ctx.font_small, color.BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT)
-    ctx.screen.blit(surface, (4, 4))
+        gctx.level, gctx.lives, gctx.score), gctx.font_small, color.BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT)
+    gctx.screen.blit(surface, (4, 4))
 
 
-def handle_player_movement(ctx: GameContext, event: pygame.event.EventType):
+def handle_player_movement(gctx: GameContext, event: pygame.event.EventType):
     if event.type == pygame.MOUSEMOTION:
         position = event.pos
-        ctx.bat_sprite.move_abs(
-            position[0] - ctx.bat_sprite.rect.width / 2, ctx.bat_sprite.rect.top)
+        gctx.bat_sprite.move_abs(
+            position[0] - gctx.bat_sprite.rect.width / 2, gctx.bat_sprite.rect.top)
 
 
-def run_get_ready(ctx: GameContext):
+def run_get_ready(gctx: GameContext):
     for event in pygame.event.get():
-        handle_player_movement(ctx, event)
+        handle_player_movement(gctx, event)
 
-    draw_game_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "GET READY!", ctx.font_large)
+    draw_game_screen(gctx)
+    blit_centred_banner_text(gctx.screen, "GET READY!", gctx.font_large)
 
-    if (ctx.game_state_ticker.counter_ms >= 2000):
-        set_game_state(ctx, GameState.RUNNING)
+    if (gctx.game_state_ticker.counter_ms >= 2000):
+        set_game_state(gctx, GameState.RUNNING)
 
 
-def run_life_lost(ctx: GameContext):
+def run_life_lost(gctx: GameContext):
     pygame.event.pump()
 
-    draw_game_screen(ctx)
+    draw_game_screen(gctx)
     text = "%s LIVES LEFT" % (
-        ctx.lives) if ctx.lives != 1 else "%s LIFE LEFT" % (ctx.lives)
-    blit_centred_banner_text(ctx.screen, text, ctx.font_large)
+        gctx.lives) if gctx.lives != 1 else "%s LIFE LEFT" % (gctx.lives)
+    blit_centred_banner_text(gctx.screen, text, gctx.font_large)
 
-    if (ctx.game_state_ticker.counter_ms >= 2000):
-        ctx.sounds.get_ready.play()
-        set_game_state(ctx, GameState.GET_READY)
+    if (gctx.game_state_ticker.counter_ms >= 2000):
+        gctx.sounds.get_ready.play()
+        set_game_state(gctx, GameState.GET_READY)
 
 
-def make_high_scores(ctx: GameContext, new_score_name, new_score):
-    new_high_scores = ctx.high_scores.copy()
+def make_high_scores(gctx: GameContext, new_score_name, new_score):
+    new_high_scores = gctx.high_scores.copy()
     new_high_scores.append((new_score_name, new_score))
     new_high_scores.sort(key=lambda tup: tup[1], reverse=True)
     return new_high_scores[:3]
@@ -284,107 +281,107 @@ def handle_ball_brick_collision_physics(ball: sprite.BallSprite, brick: sprite.I
     ball.reflect(normal)
 
 
-def handle_ball_bat_collision_physics(ctx: GameContext):
+def handle_ball_bat_collision_physics(gctx: GameContext):
 
-    if (ctx.bat_ball_debounce_ticker.counter == 0):
+    if (gctx.bat_ball_debounce_ticker.counter == 0):
         return
 
-    #print('-------')
+    gctx.bat_ball_debounce_ticker.reset()
+
+    # print('-------')
 
     normal = pygame.math.Vector2(0, -1)
 
-    dx = ctx.bat_sprite.rect.left - ctx.bat_sprite.last_pos[0]
-    dir_angle = pygame.math.Vector2(0, 1).angle_to(ctx.ball_sprite.dir)
+    dx = gctx.bat_sprite.rect.left - gctx.bat_sprite.last_pos[0]
+    dir_angle = pygame.math.Vector2(0, 1).angle_to(gctx.ball_sprite.dir)
     english_dir = pygame.math.Vector2(
-        (ctx.ball_sprite.dir[0] + dx / 10, ctx.ball_sprite.dir[1])).normalize()
+        (gctx.ball_sprite.dir[0] + dx / 10, gctx.ball_sprite.dir[1])).normalize()
     english_dir_angle = pygame.math.Vector2(0, 1).angle_to(english_dir)
 
-    
-    #print('angle: %s, english angle: %s' % (dir_angle, english_dir_angle))
+    # print('angle: %s, english angle: %s' % (dir_angle, english_dir_angle))
     if english_dir_angle < -65:
-        #print('angle out of bounds')
+        # print('angle out of bounds')
         english_dir_angle = -65
     if english_dir_angle > 65:
-        #print('angle out of bounds')
+        # print('angle out of bounds')
         english_dir_angle = 65
 
     new_vec = pygame.math.Vector2()
     new_vec.from_polar((1, english_dir_angle))
     new_vec.normalize()
     clamped_english_dir = pygame.math.Vector2(-new_vec[1], new_vec[0])
-    #print('english_dir: %s' % english_dir)
-    #print('clamped_english_dir: %s' % clamped_english_dir)
+    # print('english_dir: %s' % english_dir)
+    # print('clamped_english_dir: %s' % clamped_english_dir)
 
-    ctx.ball_sprite.dir = clamped_english_dir
-    ctx.ball_sprite.reflect(normal)
-    ctx.sounds.bat.play()
-    ctx.bat_ball_debounce_ticker.reset()
+    gctx.ball_sprite.dir = clamped_english_dir
+    gctx.ball_sprite.reflect(normal)
+    gctx.sounds.bat.play()
 
 
-def run_game(ctx: GameContext):
+def run_game(gctx: GameContext):
     for event in pygame.event.get():
-        handle_player_movement(ctx, event)
+        handle_player_movement(gctx, event)
 
-    if pygame.sprite.collide_mask(ctx.ball_sprite, ctx.bat_sprite):
-        handle_ball_bat_collision_physics(ctx)
+    if pygame.sprite.collide_mask(gctx.ball_sprite, gctx.bat_sprite):
+        handle_ball_bat_collision_physics(gctx)
 
-    if pygame.sprite.collide_mask(ctx.bottom_border_sprite, ctx.ball_sprite):
-        ctx.lives = ctx.lives - 1
+    if pygame.sprite.collide_mask(gctx.deadly_border_sprite, gctx.ball_sprite):
+        gctx.lives = gctx.lives - 1
 
-        if (ctx.lives <= 0):
-            ctx.sounds.game_over.play()
+        if (gctx.lives <= 0):
+            gctx.sounds.game_over.play()
 
-            new_high_scores = make_high_scores(ctx, '', ctx.score)
-            if (new_high_scores != ctx.high_scores):
-                set_game_state(ctx, GameState.GAME_OVER_HIGH_SCORE)
+            new_high_scores = make_high_scores(gctx, '', gctx.score)
+            if (new_high_scores != gctx.high_scores):
+                set_game_state(gctx, GameState.GAME_OVER_HIGH_SCORE)
                 return
 
-            set_game_state(ctx, GameState.GAME_OVER)
+            set_game_state(gctx, GameState.GAME_OVER)
             return
 
-        ctx.sounds.life_lost.play()
-        reset_ball(ctx)
-        set_game_state(ctx, GameState.LIFE_LOST)
+        gctx.sounds.life_lost.play()
+        reset_ball(gctx)
+        set_game_state(gctx, GameState.LIFE_LOST)
         return
 
-    for brick in ctx.bricks:
-        if pygame.sprite.collide_mask(ctx.ball_sprite, brick):
-            ctx.bricks.remove(brick)
+    for brick in gctx.bricks:
+        if pygame.sprite.collide_mask(gctx.ball_sprite, brick):
+            gctx.bricks.remove(brick)
 
-            destroyed_brick= sprite.DisappearingSprite(brick.image, (0, 2), 32)
+            destroyed_brick = sprite.DisappearingSprite(
+                brick.image, (0, 2), 32)
             bx = brick.rect.left
             by = brick.rect.top
             destroyed_brick.move_abs(brick.rect.left, brick.rect.top)
-            ctx.animations.add(destroyed_brick)
+            gctx.animations.add(destroyed_brick)
 
-            handle_ball_brick_collision_physics(ctx.ball_sprite, brick)
+            handle_ball_brick_collision_physics(gctx.ball_sprite, brick)
             points_sprite = sprite.DisappearingSprite(shape.vertical_text_gradient_surface(
-                '+10', ctx.font_small, color.BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT), (0, -1), 32)
+                '+10', gctx.font_small, color.BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT), (0, -1), 32)
             px = bx + (brick.rect.width - points_sprite.rect.width) // 2
             py = by + brick.rect.height // 2
             points_sprite.move_abs(px, py)
-            ctx.animations.add(points_sprite)
+            gctx.animations.add(points_sprite)
 
-            num_bricks = len(ctx.bricks.sprites())
+            num_bricks = len(gctx.bricks.sprites())
             # print(num_bricks)
 
-            ctx.score = ctx.score + 10
-            ctx.sounds.brick.play()
+            gctx.score = gctx.score + 10
+            gctx.sounds.brick.play()
             if (num_bricks == 0):
-                ctx.sounds.level_complete.play()
-                set_game_state(ctx, GameState.LEVEL_COMPLETE)
+                gctx.sounds.level_complete.play()
+                set_game_state(gctx, GameState.LEVEL_COMPLETE)
                 return
 
-    ctx.playfield.update()
-    ctx.animations.update()
-    draw_game_screen(ctx)
+    gctx.playfield.update()
+    gctx.animations.update()
+    draw_game_screen(gctx)
 
     # ball speed gets faster over time
-    if (ctx.game_state_ticker.counter_ms >= 20000):
-        ctx.game_state_ticker.reset()
-        ball_speed = ctx.ball_sprite.velocity + 1
-        if (ball_speed <= 20):  # maximum speed clamp
-            ctx.ball_sprite.velocity = ball_speed
+    if (gctx.game_state_ticker.counter_ms > 20000):
+        gctx.game_state_ticker.reset()
+        if (gctx.ball_sprite.velocity < 20):  # maximum speed clamp
+            gctx.ball_sprite.velocity = gctx.ball_sprite.velocity + 1
 
     return True
 
@@ -398,94 +395,96 @@ def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.fon
     return surface
 
 
-def set_game_state(ctx: GameContext, game_state: GameState):
-    ctx.game_state = game_state
-    ctx.game_state_ticker.reset()
-    ctx.bat_ball_debounce_ticker.reset()
+def set_game_state(gctx: GameContext, game_state: GameState):
+    gctx.game_state = game_state
+    gctx.game_state_ticker.reset()
+    gctx.bat_ball_debounce_ticker.reset()
 
 
-def run_attract(ctx: GameContext):
+def run_attract(gctx: GameContext):
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONUP:
-            ctx.sounds.get_ready.play()
-            set_game_state(ctx, GameState.GET_READY)  # TODO add state NEW_GAME
-            new_game(ctx)
+            gctx.sounds.get_ready.play()
+            # TODO add state NEW_GAME
+            set_game_state(gctx, GameState.GET_READY)
+            new_game(gctx)
             return
 
-    ctx.playfield.update()
-    draw_game_screen(ctx)
+    gctx.playfield.update()
+    draw_game_screen(gctx)
 
     text = ''
-    if (0 <= ctx.game_state_ticker.counter_ms <= 2000):
+    if (0 <= gctx.game_state_ticker.counter_ms <= 2000):
         text = 'Press Mouse Button'
-    elif (2000 <= ctx.game_state_ticker.counter_ms <= 4000):
+    elif (2000 <= gctx.game_state_ticker.counter_ms <= 4000):
         text = 'To Start'
     else:
-        set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
+        set_game_state(gctx, GameState.SHOW_HIGH_SCORES)
 
-    blit_centred_banner_text(ctx.screen, text, ctx.font_large)
+    blit_centred_banner_text(gctx.screen, text, gctx.font_large)
 
 
-def run_show_high_scores(ctx: GameContext):
+def run_show_high_scores(gctx: GameContext):
     for event in pygame.event.get():
         if event.type == pygame.MOUSEBUTTONUP:
-            ctx.sounds.get_ready.play()
-            set_game_state(ctx, GameState.GET_READY)  # TODO add state NEW_GAME
-            new_game(ctx)
+            gctx.sounds.get_ready.play()
+            # TODO add state NEW_GAME
+            set_game_state(gctx, GameState.GET_READY)
+            new_game(gctx)
             return
 
-    ctx.playfield.update()
-    draw_game_screen(ctx)
+    gctx.playfield.update()
+    draw_game_screen(gctx)
 
-    ctx.overlay.draw(ctx.screen)
-    ctx.overlay.update()
+    gctx.overlay.draw(gctx.screen)
+    gctx.overlay.update()
 
-    if (ctx.game_state_ticker.counter_ms >= 10000):
-        set_game_state(ctx, GameState.ATTRACT)
+    if (gctx.game_state_ticker.counter_ms >= 10000):
+        set_game_state(gctx, GameState.ATTRACT)
 
 
-def run_gameover(ctx: GameContext):
+def run_gameover(gctx: GameContext):
     pygame.event.pump()
 
-    draw_game_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
+    draw_game_screen(gctx)
+    blit_centred_banner_text(gctx.screen, "Game Over", gctx.font_large)
 
-    if (ctx.game_state_ticker.counter_ms >= 2000):
-        set_game_state(ctx, GameState.ATTRACT)
+    if (gctx.game_state_ticker.counter_ms >= 2000):
+        set_game_state(gctx, GameState.ATTRACT)
 
 
-def run_gameover_high_score(ctx: GameContext):
+def run_gameover_high_score(gctx: GameContext):
     pygame.event.pump()
 
-    draw_game_screen(ctx)
-    blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
+    draw_game_screen(gctx)
+    blit_centred_banner_text(gctx.screen, "Game Over", gctx.font_large)
 
-    if (ctx.game_state_ticker.counter_ms >= 2000):
-        set_game_state(ctx, GameState.ENTER_HIGH_SCORE)
+    if (gctx.game_state_ticker.counter_ms >= 2000):
+        set_game_state(gctx, GameState.ENTER_HIGH_SCORE)
 
 
-def run_level_complete(ctx: GameContext):
+def run_level_complete(gctx: GameContext):
     pygame.event.pump()
 
-    draw_game_screen(ctx)
-    ctx.animations.update()
-    blit_centred_banner_text(ctx.screen, "LEVEL COMPLETE", ctx.font_large)
+    draw_game_screen(gctx)
+    gctx.animations.update()
+    blit_centred_banner_text(gctx.screen, "LEVEL COMPLETE", gctx.font_large)
 
-    if (ctx.game_state_ticker.counter_ms >= 2000):
-        ctx.level = ctx.level + 1
-        reset_ball(ctx)
-        add_bricks(ctx.bricks)
+    if (gctx.game_state_ticker.counter_ms >= 2000):
+        gctx.level = gctx.level + 1
+        reset_ball(gctx)
+        add_bricks(gctx)
         # TODO add new game state NEXT_LEVEL
-        ctx.sounds.get_ready.play()
-        set_game_state(ctx, GameState.GET_READY)
+        gctx.sounds.get_ready.play()
+        set_game_state(gctx, GameState.GET_READY)
 
 
-def run_enter_high_score(ctx: GameContext):
+def run_enter_high_score(gctx: GameContext):
 
-    if ctx.custom_data is None:
-        ctx.custom_data = ''
+    if gctx.custom_data is None:
+        gctx.custom_data = ''
 
-    score_name: str = ctx.custom_data
+    score_name: str = gctx.custom_data
 
     char = ''
 
@@ -493,87 +492,87 @@ def run_enter_high_score(ctx: GameContext):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
                 # TODO add state NEW_GAME
-                set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
-                ctx.high_scores = make_high_scores(
-                    ctx, score_name, ctx.score)
-                ctx.overlay = pygame.sprite.RenderPlain()
+                set_game_state(gctx, GameState.SHOW_HIGH_SCORES)
+                gctx.high_scores = make_high_scores(
+                    gctx, score_name, gctx.score)
+                gctx.overlay = pygame.sprite.RenderPlain()
                 add_high_score_sprites(
-                    ctx.overlay, ctx.font_medium, ctx.high_scores)
+                    gctx.overlay, gctx.font_medium, gctx.high_scores)
                 return
 
             char = pygame.key.name(event.key)
             if char == 'backspace' and len(score_name):
                 score_name = score_name[:-1]
-                ctx.sounds.key_press.play()
+                gctx.sounds.key_press.play()
             elif len(char) == 1 and len(score_name) < 3:
                 score_name = score_name + char.upper()
-                ctx.sounds.key_press.play()
+                gctx.sounds.key_press.play()
 
-    ctx.screen.fill(color.SCREEN_COLOR)
+    gctx.screen.fill(color.SCREEN_COLOR)
     banner_text_surface = blit_centred_banner_text(
-        ctx.screen, "New High Score!", ctx.font_large)
+        gctx.screen, "New High Score!", gctx.font_large)
 
-    cursor = '_' if ctx.game_state_ticker.counter & 1 else ' '
+    cursor = '_' if gctx.game_state_ticker.counter & 1 else ' '
     display_name = score_name + cursor
 
     surface = shape.dual_vertical_text_gradient_surface(
-        display_name, ctx.font_medium, color.ORANGE_TO_GOLD_GRADIENT, color.GOLD_TO_ORANGE_GRADIENT)
+        display_name, gctx.font_medium, color.ORANGE_TO_GOLD_GRADIENT, color.GOLD_TO_ORANGE_GRADIENT)
     x = (constant.SCREEN_WIDTH - surface.get_rect().width)//2
     y = banner_text_surface.get_rect().height + (constant.SCREEN_HEIGHT -
                                                  surface.get_rect().height)//2
-    ctx.screen.blit(surface, (x, y))
+    gctx.screen.blit(surface, (x, y))
 
-    ctx.custom_data = score_name
+    gctx.custom_data = score_name
 
 
-def run_game_state(ctx: GameContext):
+def run_game_state(gctx: GameContext):
     if pygame.event.peek(eventtype=pygame.QUIT):
         return False
 
-    ctx.game_state_ticker.tick()
-    ctx.bat_ball_debounce_ticker.tick()
+    gctx.game_state_ticker.tick()
+    gctx.bat_ball_debounce_ticker.tick()
 
-    match (ctx.game_state):
+    match (gctx.game_state):
         case GameState.ATTRACT:
-            run_attract(ctx)
+            run_attract(gctx)
 
         case GameState.SHOW_HIGH_SCORES:
-            run_show_high_scores(ctx)
+            run_show_high_scores(gctx)
 
         case GameState.RUNNING:
-            run_game(ctx)
+            run_game(gctx)
 
         case GameState.LIFE_LOST:
-            run_life_lost(ctx)
+            run_life_lost(gctx)
 
         case GameState.GET_READY:
-            run_get_ready(ctx)
+            run_get_ready(gctx)
 
         case GameState.GAME_OVER:
-            run_gameover(ctx)
+            run_gameover(gctx)
 
         case GameState.GAME_OVER_HIGH_SCORE:  # kludge
-            run_gameover_high_score(ctx)
+            run_gameover_high_score(gctx)
 
         case GameState.LEVEL_COMPLETE:
-            run_level_complete(ctx)
+            run_level_complete(gctx)
 
         case GameState.ENTER_HIGH_SCORE:
-            run_enter_high_score(ctx)
+            run_enter_high_score(gctx)
 
     return True
 
 
 def main():
     system_init()
-    ctx = create_game_context()
-    reset_ball(ctx)
-    add_high_score_sprites(ctx.overlay, ctx.font_medium, ctx.high_scores)
+    gctx = create_game_context()
+    reset_ball(gctx)
+    add_high_score_sprites(gctx.overlay, gctx.font_medium, gctx.high_scores)
 
-    set_game_state(ctx, GameState.GAME_OVER)
-    while (run_game_state(ctx)):
+    set_game_state(gctx, GameState.GAME_OVER)
+    while (run_game_state(gctx)):
         pygame.display.flip()
-        ctx.clock.tick(60)
+        gctx.clock.tick(60)
 
     pygame.quit()
 
