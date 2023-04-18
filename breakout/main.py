@@ -18,51 +18,22 @@ class GameState(Enum):
     ENTER_HIGH_SCORE = auto()
 
 
-class GameStateContext():
-    class Ticker():
-        def __init__(self, ticks_resolution: int = 500):
-            self.ticks_resolution = ticks_resolution
-            self.ticks = pygame.time.get_ticks()
-            self.ticks_counter_ms = 0
-            self.ticks_counter = 0
+class Ticker():
+    def __init__(self, resolution: int = 500):
+        self.resolution = resolution
+        self.ticks = pygame.time.get_ticks()
+        self.counter_ms = 0
+        self.counter = 0
 
-        def tick(self) -> bool:
-            ticks_now = pygame.time.get_ticks()
-            if ticks_now - self.ticks >= self.ticks_resolution:
-                self.ticks = ticks_now
-                self.ticks_counter_ms += self.ticks_resolution
-                self.ticks_counter += 1
+    def tick(self) -> bool:
+        ticks_now = pygame.time.get_ticks()
+        if ticks_now - self.ticks >= self.resolution:
+            self.ticks = ticks_now
+            self.counter_ms += self.resolution # FIXME: will drift
+            self.counter += 1
 
-        def reset_ticks(self):
-            self.ticks_counter = self.ticks_counter_ms = 0
-
-    # TODO: this is confusing, replace with a collection
-    def __init__(self, ticks_resolution: int = 500):
-        self.tickers = [GameStateContext.Ticker(
-            ticks_resolution), GameStateContext.Ticker(ticks_resolution)]
-        self.custom_data: any = None
-
-    def tick(self):
-        for ticker in self.tickers:
-            ticker.tick()
-
-    def ticks_counter_ms(self, idx=0):
-        if 0 <= idx < len(self.tickers):
-            return self.tickers[idx].ticks_counter_ms
-        else:
-            raise Exception('ticker index[%s] out of bounds' % idx)
-
-    def ticks_counter(self, idx=0):
-        if 0 <= idx < len(self.tickers):
-            return self.tickers[idx].ticks_counter
-        else:
-            raise Exception('ticker index[%s] out of bounds' % idx)
-
-    def reset_ticks(self, idx=0):
-        if 0 <= idx < len(self.tickers):
-            self.tickers[idx].reset_ticks()
-        else:
-            raise Exception('ticker index[%s] out of bounds' % idx)
+    def reset(self):
+        self.counter = self.counter_ms = 0
 
 
 @dataclass
@@ -109,9 +80,9 @@ class GameContext:
     bat_sprite: sprite.BatSprite
     ball_sprite: sprite.BallSprite
     bottom_border_sprite: sprite.ImageSprite
-    bricks: pygame.sprite.Group
-    underlay: pygame.sprite.Group
+    animations: pygame.sprite.Group
     playfield: pygame.sprite.Group
+    bricks: pygame.sprite.Group
     overlay: pygame.sprite.Group
     clock: pygame.time.Clock
     font_small: pygame.font.Font
@@ -122,17 +93,21 @@ class GameContext:
     sounds: SoundsContext
     high_scores: list
     game_state: GameState
-    game_state_context: GameStateContext
+    game_state_ticker: Ticker
+    bat_ball_debounce_ticker: Ticker
+    custom_data: None
 
 
 def create_game_context():
     screen_rect = pygame.Rect(0, 0, constant.SCREEN_WIDTH, constant.SCREEN_HEIGHT)
     screen = pygame.display.set_mode((screen_rect.width, screen_rect.height))
     sounds = sounds_init()
+
+    animations = pygame.sprite.RenderPlain()
     playfield = pygame.sprite.RenderPlain()
     bricks = pygame.sprite.RenderPlain()
     overlay = pygame.sprite.RenderPlain()
-    underlay = pygame.sprite.RenderPlain()
+
 
     deadly_border_sprite = sprite.ImageSprite(shape.deadly_border_shape())
     deadly_border_sprite.move_abs(0, screen_rect.bottom - 4)
@@ -158,9 +133,9 @@ def create_game_context():
         bat_sprite,
         None,
         deadly_border_sprite,
-        bricks,
-        underlay,
+        animations,
         playfield,
+        bricks,
         overlay,
         clock,
         font_small,
@@ -170,14 +145,16 @@ def create_game_context():
         sounds,
         high_scores,
         None,  # game state
-        None)  # game state context
+        Ticker(), # state_ticker
+        Ticker(),  # ball_speed_ticker
+        None) # custom_data
 
     reset_ball(context)
 
     return context
 
 
-def make_bricks(group: pygame.sprite.Group):
+def add_bricks(group: pygame.sprite.Group):
     # for testing
     # group.add(BrickSprite(220, 100))
     # return
@@ -243,14 +220,14 @@ def new_game(ctx: GameContext):
     ctx.level = 1
     ctx.score = 0
     reset_ball(ctx)
-    make_bricks(ctx.bricks)
+    add_bricks(ctx.bricks)
 
 
 def draw_game_screen(ctx: GameContext):
     ctx.screen.fill(color.SCREEN_COLOR)
     ctx.playfield.draw(ctx.screen)
     ctx.bricks.draw(ctx.screen)
-    ctx.underlay.draw(ctx.screen)
+    ctx.animations.draw(ctx.screen)
 
     surface = shape.vertical_text_gradient_surface("Level:%s Lives:%s Score:%s" % (
         ctx.level, ctx.lives, ctx.score), ctx.font_small, color.BRIGHTYELLOW_TO_MIDYELLOW_GRADIENT)
@@ -271,7 +248,7 @@ def run_get_ready(ctx: GameContext):
     draw_game_screen(ctx)
     blit_centred_banner_text(ctx.screen, "GET READY!", ctx.font_large)
 
-    if (ctx.game_state_context.ticks_counter_ms() >= 2000):
+    if (ctx.game_state_ticker.counter_ms >= 2000):
         set_game_state(ctx, GameState.RUNNING)
 
 
@@ -283,7 +260,7 @@ def run_life_lost(ctx: GameContext):
         ctx.lives) if ctx.lives != 1 else "%s LIFE LEFT" % (ctx.lives)
     blit_centred_banner_text(ctx.screen, text, ctx.font_large)
 
-    if (ctx.game_state_context.ticks_counter_ms() >= 2000):
+    if (ctx.game_state_ticker.counter_ms >= 2000):
         ctx.sounds.get_ready.play()
         set_game_state(ctx, GameState.GET_READY)
 
@@ -309,10 +286,7 @@ def handle_ball_brick_collision_physics(ball: sprite.BallSprite, brick: sprite.I
 
 def handle_ball_bat_collision_physics(ctx: GameContext):
 
-    ticker = ctx.game_state_context.tickers[1]
-
-    if (ticker.ticks_counter == 0):
-        print('bat collision cooldown')
+    if (ctx.bat_ball_debounce_ticker.counter == 0):
         return
 
     #print('-------')
@@ -344,7 +318,7 @@ def handle_ball_bat_collision_physics(ctx: GameContext):
     ctx.ball_sprite.dir = clamped_english_dir
     ctx.ball_sprite.reflect(normal)
     ctx.sounds.bat.play()
-    ticker.reset_ticks()
+    ctx.bat_ball_debounce_ticker.reset()
 
 
 def run_game(ctx: GameContext):
@@ -381,7 +355,7 @@ def run_game(ctx: GameContext):
             bx = brick.rect.left
             by = brick.rect.top
             destroyed_brick.move_abs(brick.rect.left, brick.rect.top)
-            ctx.underlay.add(destroyed_brick)
+            ctx.animations.add(destroyed_brick)
 
             handle_ball_brick_collision_physics(ctx.ball_sprite, brick)
             points_sprite = sprite.DisappearingSprite(shape.vertical_text_gradient_surface(
@@ -389,7 +363,7 @@ def run_game(ctx: GameContext):
             px = bx + (brick.rect.width - points_sprite.rect.width) // 2
             py = by + brick.rect.height // 2
             points_sprite.move_abs(px, py)
-            ctx.underlay.add(points_sprite)
+            ctx.animations.add(points_sprite)
 
             num_bricks = len(ctx.bricks.sprites())
             # print(num_bricks)
@@ -402,12 +376,12 @@ def run_game(ctx: GameContext):
                 return
 
     ctx.playfield.update()
-    ctx.underlay.update()
+    ctx.animations.update()
     draw_game_screen(ctx)
 
     # ball speed gets faster over time
-    if (ctx.game_state_context.ticks_counter_ms() >= 20000):
-        ctx.game_state_context.reset_ticks()
+    if (ctx.game_state_ticker.counter_ms >= 20000):
+        ctx.game_state_ticker.reset()
         ball_speed = ctx.ball_sprite.velocity + 1
         if (ball_speed <= 20):  # maximum speed clamp
             ctx.ball_sprite.velocity = ball_speed
@@ -426,7 +400,8 @@ def blit_centred_banner_text(target: pygame.Surface, text: str, font: pygame.fon
 
 def set_game_state(ctx: GameContext, game_state: GameState):
     ctx.game_state = game_state
-    ctx.game_state_context = GameStateContext()
+    ctx.game_state_ticker.reset()
+    ctx.bat_ball_debounce_ticker.reset()
 
 
 def run_attract(ctx: GameContext):
@@ -441,9 +416,9 @@ def run_attract(ctx: GameContext):
     draw_game_screen(ctx)
 
     text = ''
-    if (0 <= ctx.game_state_context.ticks_counter_ms() <= 2000):
+    if (0 <= ctx.game_state_ticker.counter_ms <= 2000):
         text = 'Press Mouse Button'
-    elif (2000 <= ctx.game_state_context.ticks_counter_ms() <= 4000):
+    elif (2000 <= ctx.game_state_ticker.counter_ms <= 4000):
         text = 'To Start'
     else:
         set_game_state(ctx, GameState.SHOW_HIGH_SCORES)
@@ -465,7 +440,7 @@ def run_show_high_scores(ctx: GameContext):
     ctx.overlay.draw(ctx.screen)
     ctx.overlay.update()
 
-    if (ctx.game_state_context.ticks_counter_ms() >= 10000):
+    if (ctx.game_state_ticker.counter_ms >= 10000):
         set_game_state(ctx, GameState.ATTRACT)
 
 
@@ -475,7 +450,7 @@ def run_gameover(ctx: GameContext):
     draw_game_screen(ctx)
     blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
-    if (ctx.game_state_context.ticks_counter_ms() >= 2000):
+    if (ctx.game_state_ticker.counter_ms >= 2000):
         set_game_state(ctx, GameState.ATTRACT)
 
 
@@ -485,7 +460,7 @@ def run_gameover_high_score(ctx: GameContext):
     draw_game_screen(ctx)
     blit_centred_banner_text(ctx.screen, "Game Over", ctx.font_large)
 
-    if (ctx.game_state_context.ticks_counter_ms() >= 2000):
+    if (ctx.game_state_ticker.counter_ms >= 2000):
         set_game_state(ctx, GameState.ENTER_HIGH_SCORE)
 
 
@@ -493,13 +468,13 @@ def run_level_complete(ctx: GameContext):
     pygame.event.pump()
 
     draw_game_screen(ctx)
-    ctx.underlay.update()
+    ctx.animations.update()
     blit_centred_banner_text(ctx.screen, "LEVEL COMPLETE", ctx.font_large)
 
-    if (ctx.game_state_context.ticks_counter_ms() >= 2000):
+    if (ctx.game_state_ticker.counter_ms >= 2000):
         ctx.level = ctx.level + 1
         reset_ball(ctx)
-        make_bricks(ctx.bricks)
+        add_bricks(ctx.bricks)
         # TODO add new game state NEXT_LEVEL
         ctx.sounds.get_ready.play()
         set_game_state(ctx, GameState.GET_READY)
@@ -507,10 +482,10 @@ def run_level_complete(ctx: GameContext):
 
 def run_enter_high_score(ctx: GameContext):
 
-    if ctx.game_state_context.custom_data is None:
-        ctx.game_state_context.custom_data = ''
+    if ctx.custom_data is None:
+        ctx.custom_data = ''
 
-    score_name: str = ctx.game_state_context.custom_data
+    score_name: str = ctx.custom_data
 
     char = ''
 
@@ -538,7 +513,7 @@ def run_enter_high_score(ctx: GameContext):
     banner_text_surface = blit_centred_banner_text(
         ctx.screen, "New High Score!", ctx.font_large)
 
-    cursor = '_' if ctx.game_state_context.ticks_counter() & 1 else ' '
+    cursor = '_' if ctx.game_state_ticker.counter & 1 else ' '
     display_name = score_name + cursor
 
     surface = shape.dual_vertical_text_gradient_surface(
@@ -548,14 +523,15 @@ def run_enter_high_score(ctx: GameContext):
                                                  surface.get_rect().height)//2
     ctx.screen.blit(surface, (x, y))
 
-    ctx.game_state_context.custom_data = score_name
+    ctx.custom_data = score_name
 
 
 def run_game_state(ctx: GameContext):
     if pygame.event.peek(eventtype=pygame.QUIT):
         return False
 
-    ctx.game_state_context.tick()
+    ctx.game_state_ticker.tick()
+    ctx.bat_ball_debounce_ticker.tick()
 
     match (ctx.game_state):
         case GameState.ATTRACT:

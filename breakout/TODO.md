@@ -33,7 +33,8 @@
   - also implemented default normal reflection on ball sprite
 - bugfix: high score entry text position & cursor are misaligned (font was not monospace)
 - color-fill for fonts, similar to https://www.dafont.com/press-start-2p.font
-- added falling animation when a bric is destroyed
+- added falling animation when a brick is destroyed
+- better looking palette inspired by Arkanoid
 
 ---
 
@@ -43,8 +44,6 @@
 
 - case handling for text input
 - improved graphics
-- use a nicer palette
-- add animations (e.g. when a brick is destroyed)
 - find a free, arcade-stype monospace font
 - use better sound cues
   - current: <https://www.freesoundslibrary.com/>
