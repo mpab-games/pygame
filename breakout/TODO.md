@@ -35,6 +35,7 @@
 - color-fill for fonts, similar to https://www.dafont.com/press-start-2p.font
 - added falling animation when a brick is destroyed
 - better looking palette inspired by Arkanoid
+- fixed drift issue with ticker
 
 ---
 
