@@ -40,6 +40,7 @@ class SoundsContext:
     brick: pygame.mixer.Sound
     life_lost: pygame.mixer.Sound
     game_over: pygame.mixer.Sound
+    high_score: pygame.mixer.Sound
     wall: pygame.mixer.Sound
     get_ready: pygame.mixer.Sound
     level_complete: pygame.mixer.Sound
@@ -56,10 +57,12 @@ def sounds_init():
             './assets/Game-show-buzzer-sound-effect.mp3'),
         game_over=pygame.mixer.Sound(
             './assets/game-fail-sound-effect.mp3'),
+        high_score=pygame.mixer.Sound(
+            './assets/trumpet-cornet-sound.mp3'),
         bat=pygame.mixer.Sound(
             './assets/bonk-sound-effect.mp3'),
         get_ready=pygame.mixer.Sound(
-            './assets/Ding-sound-effect.mp3'),
+            './assets/notification-melody.mp3'),
         level_complete=pygame.mixer.Sound(
             './assets/cartoon-xylophone-gliss.mp3'),
         key_press=pygame.mixer.Sound(
@@ -457,6 +460,7 @@ def run_gameover_high_score(gctx: GameContext):
 
     if (gctx.game_state_ticker.counter_ms >= 2000):
         set_game_state(gctx, GameState.ENTER_HIGH_SCORE)
+        gctx.sounds.high_score.play()
 
 
 def run_level_complete(gctx: GameContext):
