@@ -398,6 +398,7 @@ def set_game_state(gctx: GameContext, game_state: GameState):
     gctx.game_state = game_state
     gctx.game_state_ticker.reset()
     gctx.bat_ball_debounce_ticker.reset()
+    gctx.custom_data = None
 
 
 def run_attract(gctx: GameContext):
