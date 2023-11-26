@@ -22,16 +22,16 @@ class Ticker():
     def __init__(self):
         self.ticks = pygame.time.get_ticks()
         self.counter_ms = 0
-        self.counter = 0
 
-    def tick(self) -> bool:
+    def tick(self):
         ticks_now = pygame.time.get_ticks()
         ticks_diff = ticks_now - self.ticks
         self.counter_ms = ticks_diff
 
     def reset(self):
         self.ticks = pygame.time.get_ticks()
-        self.counter = self.counter_ms = 0
+        self.counter_ms = 0
+
 
 @dataclass
 class SoundsContext:
@@ -282,13 +282,9 @@ def handle_ball_brick_collision_physics(ball: sprite.BallSprite, brick: sprite.I
 
 
 def handle_ball_bat_collision_physics(gctx: GameContext):
-
-    if (gctx.bat_ball_debounce_ticker.counter == 0):
+    if (gctx.bat_ball_debounce_ticker.counter_ms < 17): # wait 1 frame @ 60 Hz
         return
-
     gctx.bat_ball_debounce_ticker.reset()
-
-    # print('-------')
 
     normal = pygame.math.Vector2(0, -1)
 
@@ -512,7 +508,7 @@ def run_enter_high_score(gctx: GameContext):
     banner_text_surface = blit_centred_banner_text(
         gctx.screen, "New High Score!", gctx.font_large)
 
-    cursor = '_' if gctx.game_state_ticker.counter & 1 else ' '
+    cursor = '_' if (gctx.game_state_ticker.counter_ms // 500) & 1 else ' '
     display_name = score_name + cursor
 
     surface = shape.dual_vertical_text_gradient_surface(
@@ -525,8 +521,13 @@ def run_enter_high_score(gctx: GameContext):
     gctx.custom_data = score_name
 
 
-def run_game_state(gctx: GameContext):
-    if pygame.event.peek(eventtype=pygame.QUIT):
+def run_game_state(gctx: GameContext) -> bool:
+
+    for _ in pygame.event.get(pygame.QUIT):
+        return False
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_ESCAPE]:
         return False
 
     gctx.game_state_ticker.tick()

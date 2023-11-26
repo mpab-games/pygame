@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
-. ./python-env
+. ./activate
 python main.py

@@ -3,7 +3,7 @@
 Pre-requisites
 
 - Python 3 is installed on your system
-- tested with python 3.11
+- tested on python 3.11.4
 - not tested with python 2
 
 Compatibility
@@ -11,14 +11,14 @@ Compatibility
 - Windows 11
 - MacOS
 
-Setup/Installation
+Setup/Install python environment
 
 ```sh
-# setup
-> ./setup
+# create environment, install packages
+. ./activate
 ```
 
 ```sh
 # run
-> ./run
+./run
 ```
