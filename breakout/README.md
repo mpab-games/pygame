@@ -13,12 +13,20 @@ Compatibility
 
 Setup/Install python environment
 
+## shell
+
 ```sh
 # create environment, install packages
 . ./activate
-```
-
-```sh
 # run
 ./run
+```
+
+## DOS/Windows
+
+```cmd
+REM create environment, install packages
+activate.bat
+REM run
+run.bat
 ```

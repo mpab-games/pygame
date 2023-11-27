@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 
-(exit 0) && $(return >/dev/null 2>&1) && : || { echo "$0: must be sourced"; exit; }
+(exit 0) && $(return >/dev/null 2>&1) && : || {
+  echo "$0: must be sourced"
+  exit
+}
 
 echo $CMD_EXIT
 
@@ -10,19 +13,24 @@ export PYTHON_ENVIRONMENT="venv-$distro_name"
 
 python_command() {
   if ! [ -d ./$PYTHON_ENVIRONMENT ]; then
-      echo creating environment: $PYTHON_ENVIRONMENT using $PYTHON_CMD -m venv ./$PYTHON_ENVIRONMENT
-      $PYTHON_CMD -m venv ./$PYTHON_ENVIRONMENT
+    echo creating environment: $PYTHON_ENVIRONMENT using $PYTHON_CMD -m venv ./$PYTHON_ENVIRONMENT
+    $PYTHON_CMD -m venv ./$PYTHON_ENVIRONMENT
   fi
 
   if [ -d ./$PYTHON_ENVIRONMENT ]; then
-      echo found environment: $PYTHON_ENVIRONMENT
+    echo found environment: $PYTHON_ENVIRONMENT
   fi
 
-  # windows
+  # windows (msys, git-bash)
   if [ -e ./$PYTHON_ENVIRONMENT/Scripts/activate ]; then
     echo activating environment: ./$PYTHON_ENVIRONMENT/Scripts/activate
     . ./$PYTHON_ENVIRONMENT/Scripts/activate
     python -m pip install --upgrade pip
+
+    if [ -e requirements.txt ]; then
+      echo installing packages using requirements.txt
+      pip install -r requirements.txt
+    fi
   fi
 
   # Linux, MacOS, ...
@@ -30,11 +38,11 @@ python_command() {
     echo activating environment: ./$PYTHON_ENVIRONMENT/bin/activate
     . ./$PYTHON_ENVIRONMENT/bin/activate
     python -m pip install --upgrade pip
-  fi
 
-  if [ -e requirements.txt ]; then
-    echo installing packages using requirements.txt
-    pip install -r requirements.txt
+    if [ -e requirements.txt ]; then
+      echo installing packages using requirements.txt
+      pip install -r requirements.txt
+    fi
   fi
 }
 
