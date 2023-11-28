@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-[ -z {$1+x} ] && echo usage: $0 \$filename.py && exit
-[ ! -f $1 ] && echo file: $1 not found && exit
+[ -z "$1" ] && echo usage: $0 \$filename.py && exit
+[ ! -f "$1" ] && echo file: $1 not found && exit
 . ./activate
 python -m debugpy --listen 5678 ./$1
